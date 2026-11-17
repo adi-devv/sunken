@@ -4,7 +4,7 @@ A calm 3D underwater exploration game, drawn entirely with text characters in th
 
 Long ago the city of Atlantis sank beneath the sea, and one by one its eight great beacons went dark. You dive from the kelp shallows down the reef slope and through the twilight trench to the drowned temple on the midnight floor. Each relic you find relights a beacon. A pillar of gold light rises to the surface, the old stonework around it starts to glow, and your lamp, whistle or fins get an upgrade. There's no danger and no timer.
 
-You aren't alone down there. Whistle (F) and a pod of dolphins will come to you, circle you, then lead you to the next relic, with the leader glowing so you can follow it through the dark. Sea turtles and manta rays drift around the ruins and answer the whistle too.
+You aren't alone down there. Whistle (F) and a pod of dolphins will come to you, circle you, then lead you to the next relic, with the leader glowing so you can follow it through the dark. Sea turtles and manta rays drift around the ruins and answer the whistle too. Reef sharks patrol nearby and keep their distance. Schools of fish and silver bait balls swirl past you, crabs and starfish crawl along the floor, and jellyfish drift from the shallows down to the deep. The water is murky: it gets darker and closer the deeper you go.
 
 Every frame is ray-marched on the CPU, one ray per character cell, then shaded with colour, fog, light shafts and glow. Everything is in a single HTML file with no dependencies.
 
