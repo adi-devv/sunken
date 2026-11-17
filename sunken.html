@@ -307,10 +307,10 @@ const NF=0;let fishN=0;const fx=[],fy=[],fz=[],fvx=[],fvy=[],fvz=[],fsc=[],fseed
 const SCH=[];
 (function(){const r=rng(31337);
  function school(zmin,zmax,n,lo,hi){const z=zmin+r()*(zmax-zmin),x=xc(z)+(r()-0.5)*110;const gh=H(x,z);const y=Math.min(-2.5,gh+lo+r()*(hi-lo));const cnt=12+(r()*18|0);const sid=SCH.length;
-  const sp=z<150?(r()<0.5?0:1):z<330?(r()<0.5?2:3):z<470?4:5;SCH.push({hx:x,hy:y,hz:z,ph:r()*TAU,ph2:r()*TAU,sp,cx:x,cy:y,cz:z,avx:0,avy:0,avz:0,i0:fx.length,n:cnt,rad:18+r()*14});
+  const sp=z<150?(r()<0.5?0:1):z<330?(r()<0.5?2:3):z<470?4:5;SCH.push({hx:x,hy:y,hz:z,ph:r()*TAU,ph2:r()*TAU,sp,cx:x,cy:y,cz:z,avx:0,avy:0,avz:0,i0:fx.length,n:cnt,alive:cnt,revT:0,rad:18+r()*14});
   for(let k=0;k<cnt;k++){fx.push(x+(r()-0.5)*5);fy.push(y+(r()-0.5)*3);fz.push(z+(r()-0.5)*5);fvx.push(r()-0.5);fvy.push(0);fvz.push(r()-0.5);fsc.push(sid);fseed.push(r())}}
  for(let i=0;i<22;i++)school(-5,170,0,2,9);for(let i=0;i<12;i++)school(150,330,0,1.5,12);for(let i=0;i<10;i++)school(320,470,0,2,14);for(let i=0;i<7;i++)school(460,620,0,2,12);
- for(let q=0;q<4;q++){const sid=SCH.length;const cnt=46;SCH.push({hx:0,hy:-8,hz:-500,ph:r()*TAU,ph2:r()*TAU,sp:6,cx:0,cy:-8,cz:-500,avx:0,avy:0,avz:0,i0:fx.length,n:cnt,rad:7,roam:q});
+ for(let q=0;q<4;q++){const sid=SCH.length;const cnt=46;SCH.push({hx:0,hy:-8,hz:-500,ph:r()*TAU,ph2:r()*TAU,sp:6,cx:0,cy:-8,cz:-500,avx:0,avy:0,avz:0,i0:fx.length,n:cnt,alive:cnt,revT:0,rad:7,roam:q});
   for(let k=0;k<cnt;k++){fx.push((r()-0.5)*5);fy.push(-8);fz.push(-500+(r()-0.5)*5);fvx.push(r()-0.5);fvy.push(0);fvz.push(r()-0.5);fsc.push(sid);fseed.push(r())}}
  fishN=fx.length})();
 const SPECIES=[
@@ -321,9 +321,15 @@ const JN=82;const jx0=[],jy0=[],jz0=[],jph=[],jr=[],jc=[],jX=[],jY=[],jZ=[];
  for(let i=0;i<JN;i++){const sh=i>=64;const z=sh?25+r()*200:i<10?220+r()*110:i<32?330+r()*130:460+r()*150;const x=xc(z)+(r()-0.5)*(sh?70:90);const h=H(x,z);const y=sh?Math.max(h+3,-4-r()*10):h+4+r()*(i<32?22:16);jx0.push(x);jz0.push(z);jy0.push(Math.min(y,sh?-3:-12));jph.push(r()*TAU);jr.push(0.6+r()*1.3);jc.push(JC[(r()*4)|0]);jX.push(x);jY.push(y);jZ.push(z)}})();
 const PART=760;const ppx=new Float32Array(PART),ppy=new Float32Array(PART),ppz=new Float32Array(PART),ppg=new Uint8Array(PART);
 for(let i=0;i<PART;i++){ppx[i]=(Math.random()-0.5)*48;ppy[i]=(Math.random()-0.5)*26;ppz[i]=(Math.random()-0.5)*48;ppg[i]=Math.random()<0.3?1:0}
-const whale={x:0,y:-25,z:200,dx:1,dz:0,sp:6,len:26,active:false,calledAt:0,big:false,age:0,phase:0};
-function respawnWhale(){const a=Math.random()*TAU,d=210;const big=envDep>85||Math.random()<0.2;whale.big=big;whale.len=big?44:26;whale.x=P.x+Math.cos(a)*d;whale.z=P.z+Math.sin(a)*d;
- const tx=P.x+(Math.random()-0.5)*110,tz=P.z+(Math.random()-0.5)*110;let dx=tx-whale.x,dz=tz-whale.z;const l=Math.hypot(dx,dz);whale.dx=dx/l;whale.dz=dz/l;whale.sp=big?4.5:6;
+const whale={x:0,y:-25,z:200,dx:1,dz:0,sp:6,len:50,active:false,calledAt:0,big:true,age:0,phase:0,tgt:-1,tgtT:0,hx:0,hy:0,hz:0};
+function pickPrey(){let best=-1,bs=-1e9;const fx0=Math.sin(P.yaw),fz0=Math.cos(P.yaw);
+ for(let k=0;k<SCH.length;k++){const q=SCH[k];if(q.alive<q.n*0.5)continue;const ex=q.cx-P.x,ez=q.cz-P.z,d=Math.hypot(ex,ez);if(d<20||d>110||q.cy>-3||H(q.cx,q.cz)>-17)continue;const sc=(ex*fx0+ez*fz0)/d*40-d*0.3+(q.roam!==undefined?25:0)+Math.random()*15;if(sc>bs){bs=sc;best=k}}return best}
+function respawnWhale(){whale.tgt=-1;
+ if(P.y<-2&&S.mode==='play'&&Math.random()<0.6){const k=pickPrey();if(k>=0){const q=SCH[k];const a=Math.atan2(q.cz-P.z,q.cx-P.x)+(Math.random()-0.5)*1.2;
+  whale.x=q.cx+Math.cos(a)*170;whale.z=q.cz+Math.sin(a)*170;let dx=q.cx-whale.x,dz=q.cz-whale.z;const l=Math.hypot(dx,dz);whale.dx=dx/l;whale.dz=dz/l;whale.sp=6;
+  whale.y=clamp(q.cy,H(whale.x,whale.z)+9,-9);whale.tgt=k;whale.tgtT=T;whale.age=0;whale.active=true;whale.phase=Math.random()*TAU;whale.called=false;return}}
+ const a=Math.random()*TAU,d=210;whale.big=true;whale.len=50;whale.x=P.x+Math.cos(a)*d;whale.z=P.z+Math.sin(a)*d;
+ const tx=P.x+(Math.random()-0.5)*110,tz=P.z+(Math.random()-0.5)*110;let dx=tx-whale.x,dz=tz-whale.z;const l=Math.hypot(dx,dz);whale.dx=dx/l;whale.dz=dz/l;whale.sp=4.5;
  whale.y=Math.min(-10,P.y+(Math.random()*16-8));whale.age=0;whale.active=true;whale.phase=Math.random()*TAU;whale.called=false}
 
 /* ================= AUDIO ================= */
@@ -513,7 +519,7 @@ function worldPass(){
   const up=0.72+0.5*dy;let fr=fcR*up,fg=fcG*up,fb=fcB*up;
   if(AIR){const e=Math.sqrt(dy>0?dy:0);fr=0.78+(0.26-0.78)*e;fg=0.86+(0.5-0.86)*e;fb=0.95+(0.9-0.95)*e}
   const sd=dx*sdx+dy*sdy+dz*sdz;if(sd>0.6&&sI>0.04){const g=Math.pow((sd-0.6)*2.5,3)*0.5*sI;fr+=g*1.0;fg+=g*0.95;fb+=g*0.7}
-  let cr=fr,cg=fg,cb=fb,lvl=0,rp=R_WATER,gx=-1;const Tt=kind===0?0:Math.exp(-dens*tEnd);
+  let cr=fr,cg=fg,cb=fb,lvl=0,rp=R_WATER,gx=-1;const Tt=kind===0?0:Math.exp(-dens*tEnd)*(AIR?1-smooth(maxD*0.72,maxD,tEnd):1);
   let litLum=0;
   if(kind===1){
    const hx=ox+dx*tEnd,hy=oy+dy*tEnd,hz=oz+dz*tEnd;const e=1.3;
@@ -616,7 +622,7 @@ function worldPass(){
     const ka=hy>0?smooth(0,0.6,hy):0,kw=1-ka,sa=0.45*ka*(p.mat===9?0.75+0.25*Math.abs(ny):hemi),su=1.15*sm*ka;const lr=(SUNR[l]*sm+AMBR[l]*hemi)*kw+su+sa*0.85+la*1.0+lgR,lg=(SUNG[l]*sm+AMBG[l]*hemi)*kw+su*0.97+sa*0.93+la*0.86+lgG,lb=(SUNB[l]*sm+AMBB[l]*hemi)*kw+su*0.88+sa+la*0.68+lgB;
     let sr=ar*lineDark*lr+emR,sg=ag*lineDark*lg+emG,sb=ab*lineDark*lb+emB;
     litLum=0.3*sr+0.59*sg+0.11*sb;
-    const fe=(emR+emG+emB>0.3)?0.5:1;const Tf=Math.exp(-dens*tEnd*fe);
+    const fe=(emR+emG+emB>0.3)?0.5:1;const Tf=Math.exp(-dens*tEnd*fe)*(AIR?1-smooth(maxD*0.72,maxD,tEnd):1);
     cr=fr+(sr-fr)*Tf;cg=fg+(sg-fg)*Tf;cb=fb+(sb-fb)*Tf;
     rp=p.mat===6?R_ANIM:R_STONE;lvl=(1-Math.exp(-litLum*2.4))*(0.25+0.75*Tf);
     if(glyph>=0)gx=glyph;else if(lineGlyph>=0&&lvl>0.12)gx=lineGlyph;else if(p.leaf)gx=G(lvl>0.45?'%':lvl>0.25?'*':'"');
@@ -799,16 +805,20 @@ function floraPass(){
 }
 /* fish */
 function updateFish(dt){
- for(const s of SCH){let ax=0,ay=0,az=0,vx=0,vy=0,vz=0;for(let k=0;k<s.n;k++){const i=s.i0+k;ax+=fx[i];ay+=fy[i];az+=fz[i];vx+=fvx[i];vy+=fvy[i];vz+=fvz[i]}
-  s.cx=ax/s.n;s.cy=ay/s.n;s.cz=az/s.n;s.avx=vx/s.n;s.avy=vy/s.n;s.avz=vz/s.n;
+ const wOn=whale.active,whx=whale.hx,why=whale.hy,whz=whale.hz,wR=whale.len*0.6;
+ for(const s of SCH){
+  if(s.alive<s.n&&T>s.revT&&Math.hypot(s.hx-P.x,s.hz-P.z)>maxD*1.1&&Math.hypot(s.cx-P.x,s.cz-P.z)>maxD*1.1){for(let k=0;k<s.n;k++){const i=s.i0+k;if(fy[i]<-5000){fx[i]=s.hx+(Math.random()-0.5)*5;fy[i]=s.hy+(Math.random()-0.5)*3;fz[i]=s.hz+(Math.random()-0.5)*5}}s.alive=s.n}
+  let ax=0,ay=0,az=0,vx=0,vy=0,vz=0,m=0;for(let k=0;k<s.n;k++){const i=s.i0+k;if(fy[i]<-5000)continue;m++;ax+=fx[i];ay+=fy[i];az+=fz[i];vx+=fvx[i];vy+=fvy[i];vz+=fvz[i]}
+  if(m){s.cx=ax/m;s.cy=ay/m;s.cz=az/m;s.avx=vx/m;s.avy=vy/m;s.avz=vz/m}
   if(s.roam!==undefined&&S.mode==='play'&&Math.hypot(s.hx-P.x,s.hz-P.z)>Math.max(58,maxD*1.05)){const an=P.yaw+(s.roam-1.5)*0.9+(Math.random()-0.5)*0.5,rr=Math.max(40,maxD*0.8);
    s.hx=clamp(P.x+Math.sin(an)*rr,-226,226);s.hz=clamp(P.z+Math.cos(an)*rr,-6,616);const g=H(s.hx,s.hz);s.hy=clamp(P.y+(Math.random()-0.5)*6,g+2.5,-3);
-   for(let k=0;k<s.n;k++){const i=s.i0+k;fx[i]=s.hx+(Math.random()-0.5)*6;fy[i]=s.hy+(Math.random()-0.5)*3;fz[i]=s.hz+(Math.random()-0.5)*6}}
+   for(let k=0;k<s.n;k++){const i=s.i0+k;fx[i]=s.hx+(Math.random()-0.5)*6;fy[i]=s.hy+(Math.random()-0.5)*3;fz[i]=s.hz+(Math.random()-0.5)*6}s.alive=s.n;s.cx=s.hx;s.cy=s.hy;s.cz=s.hz}
   s.tx=s.hx+Math.sin(T*0.045+s.ph)*s.rad;s.tz=s.hz+Math.cos(T*0.04+s.ph2)*s.rad;s.ty=s.hy+Math.sin(T*0.06+s.ph)*2.5}
- for(let i=0;i<fishN;i++){const s=SCH[fsc[i]];const dxp=fx[i]-P.x,dyp=fy[i]-P.y,dzp=fz[i]-P.z;const dp2=dxp*dxp+dyp*dyp+dzp*dzp;if(dp2>150*150)continue;
+ for(let i=0;i<fishN;i++){const s=SCH[fsc[i]];const dxp=fx[i]-P.x,dyp=fy[i]-P.y,dzp=fz[i]-P.z;const dp2=dxp*dxp+dyp*dyp+dzp*dzp;if(dp2>150*150||fy[i]<-5000)continue;
   let sx=(s.tx-fx[i])*0.12+(s.cx-fx[i])*0.5+(s.avx-fvx[i])*0.8,sy=(s.ty-fy[i])*0.12+(s.cy-fy[i])*0.5+(s.avy-fvy[i])*0.8,sz=(s.tz-fz[i])*0.12+(s.cz-fz[i])*0.5+(s.avz-fvz[i])*0.8;
   for(let k=0;k<s.n;k++){const o=s.i0+k;if(o===i)continue;const ex=fx[i]-fx[o],ey=fy[i]-fy[o],ez=fz[i]-fz[o];const e2=ex*ex+ey*ey+ez*ez;if(e2<1.1&&e2>1e-4){const k2=(1.1-e2)*2/Math.sqrt(e2);sx+=ex*k2;sy+=ey*k2;sz+=ez*k2}}
   let flee=0;if(dp2<15*15){const d=Math.sqrt(dp2)+0.01;flee=(1-d/15);const f=flee*flee*40;sx+=dxp/d*f;sy+=dyp/d*f*0.5;sz+=dzp/d*f}
+  if(wOn){const ex=fx[i]-whx,ey=fy[i]-why,ez=fz[i]-whz,e2=ex*ex+ey*ey+ez*ez;if(e2<wR*wR){const d=Math.sqrt(e2)+0.01,w=1-d/wR;flee=Math.max(flee,w);const f=w*w*55;sx+=ex/d*f;sy+=ey/d*f*0.6;sz+=ez/d*f}}
   const h=H(fx[i],fz[i]);if(fy[i]<h+0.9)sy+=(h+0.9-fy[i])*6;if(fy[i]>-2)sy-=(fy[i]+2)*4;
   fvx[i]+=sx*dt;fvy[i]+=sy*dt;fvz[i]+=sz*dt;fvy[i]*=0.97;
   const sp=Math.hypot(fvx[i],fvy[i],fvz[i]);const mx=1.9+flee*6,mn=0.9;if(sp>mx){const k=mx/sp;fvx[i]*=k;fvy[i]*=k;fvz[i]*=k}else if(sp<mn&&sp>1e-4){const k=mn/sp;fvx[i]*=k;fvy[i]*=k;fvz[i]*=k}
@@ -880,10 +890,17 @@ function particlePass(dt){
 }
 function updateWhale(dt){
  if(!whale.active){if(Math.random()<dt*0.02||whale.age>0)respawnWhale();return}
- whale.age+=dt;whale.x+=whale.dx*whale.sp*dt;whale.z+=whale.dz*whale.sp*dt;whale.y+=Math.sin(T*0.2+whale.phase)*dt*0.4;
+ whale.age+=dt;
+ if(whale.tgt>=0){const q=SCH[whale.tgt];const hx=whale.x+whale.dx*whale.len*0.5,hz=whale.z+whale.dz*whale.len*0.5;
+  let ex=q.cx-hx,ez=q.cz-hz;const d=Math.hypot(ex,ez)||1;ex/=d;ez/=d;const tr=Math.min(1,dt*0.6);let nx=whale.dx+(ex-whale.dx)*tr,nz=whale.dz+(ez-whale.dz)*tr;const l=Math.hypot(nx,nz)||1;whale.dx=nx/l;whale.dz=nz/l;
+  whale.sp+=((d<45?11:6.5)-whale.sp)*Math.min(1,dt*0.8);whale.y+=(clamp(q.cy,H(whale.x,whale.z)+9,-9)-whale.y)*Math.min(1,dt*0.7);
+  const dy=q.cy-whale.y;if(d<6&&Math.abs(dy)<9)whaleEat(whale.tgt);else if(T-whale.tgtT>70||q.alive<q.n*0.3)whale.tgt=-1}
+ else whale.sp+=(4.5-whale.sp)*Math.min(1,dt*0.3);
+ whale.x+=whale.dx*whale.sp*dt;whale.z+=whale.dz*whale.sp*dt;whale.y+=Math.sin(T*0.2+whale.phase)*dt*0.4;
+ whale.hx=whale.x+whale.dx*whale.len*0.5;whale.hy=whale.y;whale.hz=whale.z+whale.dz*whale.len*0.5;
  const h=H(whale.x,whale.z);if(whale.y<h+8)whale.y+=(h+8-whale.y)*dt*0.5;
  const dp=Math.hypot(whale.x-P.x,whale.z-P.z);if(!whale.called&&dp<190&&S.mode==='play'){whale.called=true;setTimeout(()=>whaleCall(clamp(1.1-dp/260,0.3,1)),1200+Math.random()*2500)}
- if(dp>300&&whale.age>10)whale.active=false;
+ if(dp>300&&whale.age>10&&whale.tgt<0)whale.active=false;
  const L=whale.len,sc=L/26;const prof=[[0.5,0.9],[0.35,1.8],[0.2,2.8],[0.05,3.3],[-0.1,3.4],[-0.25,3.0],[-0.4,2.4],[-0.55,1.8],[-0.7,1.2],[-0.82,0.8]];
  const lat=-whale.dz,lon=whale.dx;
  for(let k=0;k<prof.length;k++){const w=WH[k];const a=prof[k][0]*L,rd=prof[k][1]*sc;const wig=Math.sin(T*0.8+whale.phase-k*0.5)*0.5*sc*(k/10);
@@ -894,6 +911,10 @@ function updateWhale(dt){
  for(const f of[fl,fr]){f.a=1.9*sc*(0.3+Math.abs(whale.dz)*0.7)+0.3;f.b=0.3*sc;f.c=1.9*sc*(0.3+Math.abs(whale.dx)*0.7)+0.3;f.br=Math.max(f.a,f.c)}
  fn.x=whale.x+whale.dx*0.3*L+(-whale.dz)*3*sc;fn.z=whale.z+whale.dz*0.3*L+whale.dx*3*sc;fn.y=whale.y-1.5*sc;fn.a=Math.abs(whale.dx)*2.4*sc+0.6;fn.b=0.35*sc;fn.c=Math.abs(whale.dz)*2.4*sc+0.6;fn.br=Math.max(fn.a,fn.c);
  if(!whale.active)return}
+function whaleEat(k){const q=SCH[k];let n=0;const R=whale.len*0.22;
+ for(let j=0;j<q.n;j++){const i=q.i0+j;if(fy[i]<-5000)continue;const ex=fx[i]-whale.hx,ey=fy[i]-whale.hy,ez=fz[i]-whale.hz;if(ex*ex+ey*ey*0.6+ez*ez<R*R||Math.random()<0.55){fy[i]=-9999;n++}}
+ q.alive-=n;q.revT=T+45;whale.tgt=-1;whale.gulpT=T;
+ if(S.mode==='play'&&!S.muted){const dp=Math.hypot(whale.x-P.x,whale.z-P.z);setTimeout(()=>whaleCall(clamp(1.2-dp/200,0.3,1)),600)}}
 function hideWhale(){for(const w of WH){w.y=1e4}}
 function spawnNear(a,dist,ang){if(ang===undefined)ang=P.yaw+PI+(Math.random()-0.5)*2;const x=clamp(P.x+Math.sin(ang)*dist,-228,228),z=clamp(P.z+Math.cos(ang)*dist,-8,618);const g=H(x,z);
  a.x=x;a.z=z;a.y=clamp(P.y+(Math.random()-0.5)*6,g+3,-3);a.vx=a.vy=a.vz=0;a.wT=0}
@@ -1097,7 +1118,7 @@ function collide(){const R=0.85;
    _p[ax[0]]+=ea;_p[ax[1]]+=eu;_p[ax[2]]+=ev;P.x=_p[0];P.y=_p[1];P.z=_p[2]}
   else{const A=p.a+R,B=p.b+R,C=p.c+R;const qx=dx/A,qy=dy/B,qz=dz/C;const s2=qx*qx+qy*qy+qz*qz;if(s2<1){const sc=1/Math.sqrt(s2+1e-9);P.x=p.x+dx*sc;P.y=p.y+dy*sc;P.z=p.z+dz*sc}}}}
 function updateEnv(){
- if(cy>0){envDep=0;fogR=0.7;fogG=0.82;fogB=0.94;sunS=1;dens=0.0035;maxD=150;lampI=0;causticK=1;return}
+ if(cy>0){envDep=0;fogR=0.7;fogG=0.82;fogB=0.94;sunS=1;dens=0.0005;maxD=420;lampI=0;causticK=1;return}
  envDep=clamp(-cy,0,198);const l=li(envDep);fogR=FOGR[l];fogG=FOGG[l];fogB=FOGB[l];sunS=SUNG[l];dens=0.024+envDep*0.0003;maxD=clamp(3.2/dens,38,84);lampI=(smooth(8,70,envDep)*0.9+0.22)*(1+0.3*lampLv);causticK=1}
 function relicCheck(){for(const q of RL){if(q.found)continue;const dx=q.x-P.x,dy=q.y-P.y,dz=q.z-P.z;const r=q.i===7?11:8.5;if(dx*dx+dy*dy+dz*dz<r*r)discover(q)}
  const q7=RL[7];if(q7.found&&q7.dl){doorOpen=Math.min(1,doorOpen+0.006*(1));const e=doorOpen*doorOpen*(3-2*doorOpen);q7.dl.x=q7.dl.x0-e*2.5;q7.dr.x=q7.dr.x0+e*2.5}}
@@ -1173,6 +1194,6 @@ function loop(ms){try{step(ms)}catch(e){console.error(e);}requestAnimationFrame(
 setupGrid();
 if(document.fonts&&document.fonts.load){const to=new Promise(r=>setTimeout(r,2500));Promise.race([document.fonts.load('14px "JetBrains Mono"'),to]).then(()=>{fontOK=true;buildAtlas()}).catch(()=>{})}
 requestAnimationFrame(loop);
-window.__sunken={step,S,P,perf,RL,PR,ping,journal,keys,get found(){return found},get T(){return T},H,setFs(v){fs=v;setupGrid()},get ui(){return[UCOLS,UROWS,UCW,UCH,ufs,uiZoom]},get dims(){return[COLS,ROWS,CW,CH]},tele(x,y,z,yaw,pitch){P.x=x;P.y=y;P.z=z;P.yaw=yaw||0;P.pitch=pitch||0;P.vx=P.vy=P.vz=0},start(){S.mode='play';S.paused=false;S.startT=T;dive=1},doPing(){ping.t=T},whistle(){ping.t=-99;doPing()},AN,POD,whale,discover,get panel(){return panel}};
+window.__sunken={SCH,respawnWhale,get fishY(){return fy},step,S,P,perf,RL,PR,ping,journal,keys,get found(){return found},get T(){return T},H,setFs(v){fs=v;setupGrid()},get ui(){return[UCOLS,UROWS,UCW,UCH,ufs,uiZoom]},get dims(){return[COLS,ROWS,CW,CH]},tele(x,y,z,yaw,pitch){P.x=x;P.y=y;P.z=z;P.yaw=yaw||0;P.pitch=pitch||0;P.vx=P.vy=P.vz=0},start(){S.mode='play';S.paused=false;S.startT=T;dive=1},doPing(){ping.t=T},whistle(){ping.t=-99;doPing()},AN,POD,whale,discover,get panel(){return panel}};
 })();
 </script></body></html>

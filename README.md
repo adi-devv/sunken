@@ -6,7 +6,7 @@ A calm 3D underwater exploration game, drawn entirely in text characters in your
 
 ![SUNKEN title screen](screenshot.jpg)
 
-Dive through kelp, reefs and a dark trench to find the eight relics that relight the beacons of sunken Atlantis. Whistle for dolphins and they'll guide you to the next one. Come up for air and walk around a small beach island. There's no danger and no timer.
+Dive through kelp, reefs and a dark trench to find the eight relics that relight the beacons of sunken Atlantis. Whistle for dolphins and they'll guide you to the next one. A huge whale roams the sea and sometimes swallows a whole school of fish. Come up for air and walk around a small beach island. There's no danger and no timer.
 
 Every frame is ray-marched on the CPU, one ray per character. It's a single HTML file with no dependencies.
 
