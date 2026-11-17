@@ -605,6 +605,7 @@ window.addEventListener('keydown',e=>{
  else if(c==='KeyF'){doPing()}
  else if(c==='KeyR'){takePhoto()}
  else if(c==='KeyG'){grabWhale()}
+ else if(c==='Enter'&&panel&&!journal.open&&T-panel.t0<23){const full=panel.rel.text.length/55+0.05;if(T-panel.t0<full)panel.t0=T-full;else panel.t0=T-25.4}   // first press shows all the text, second closes it
  else if(c==='Enter'&&endPanel===1){endPanel=2}
  else if(journal.open&&(c==='Tab'||c==='ArrowLeft'||c==='ArrowRight')){journal.page=(journal.page+(c==='ArrowLeft'?2:1))%3}
  else if(c==='BracketLeft'){fs=Math.max(8,fs-1);setupGrid()}
@@ -949,7 +950,7 @@ function worldPass(){
    let cl=0;if(dy>0.015){const t=(90-oy)/dy;const u=ox+dx*t,v=oz+dz*t;cl=smooth(CLA,CLB,fbm(u*0.005+tnow*CLS,v*0.005+tnow*0.002,4))*smooth(0.015,0.12,dy)}
    const sd2=dx*SUNV[0]+dy*SUNV[1]+dz*SUNV[2];let sun=sd2>0.9985?1.5:sd2>0.995?(sd2-0.995)/0.0035*0.8:0;sun*=SUNVIS*(1-cl)*(1-stormK);
    const md=dx*MOONV[0]+dy*MOONV[1]+dz*MOONV[2];let moon=md>0.99925?1.1:md>0.9965?(md-0.9965)/0.00275*0.3:0;moon*=nightK*(1-cl)*(1-stormK);
-   let star=0;if(nightK>0.05&&dy>0.03&&cl<0.4){const hs=hash2(Math.floor(Math.atan2(dx,dz)*170),Math.floor(Math.asin(dy)*170));if(hs>0.982)star=(hs-0.982)*55*nightK*(1-cl*2.5)*(0.75+0.25*Math.sin(tnow*2.7+hs*900))}
+   const star=0;   // stars are drawn as fixed points in starPass, so they don't flicker as you turn
    cr=lerp(fr,CLr,cl*0.9)+sun*SDr+moon*0.82+star*0.85;cg=lerp(fg,CLg,cl*0.9)+sun*SDg+moon*0.86+star*0.9;cb=lerp(fb,CLb,cl*0.9)+sun*SDb+moon+star;litLum=0.3*cr+0.59*cg+0.11*cb;
    rp=R_SKY;lvl=cl*0.85+(sun>0.05?0.9:0)+(moon>0.05?0.9:0);if(sun>0.8)gx=G('@');else if(moon>0.5)gx=G('O');else if(star>0.25)gx=G(star>0.7?'*':star>0.45?'+':'.')}
   // god rays
@@ -1121,6 +1122,15 @@ function edgePass(){
 const BIRDS=[];(function(){const r=rng(909);for(let f=0;f<5;f++){const near=f<3;const bx=ISL.x+(near?(r()-0.5)*16:(r()-0.5)*180),bz=ISL.z+(near?(r()-0.5)*16:40+(r()-0.5)*160);const n=4+(r()*5|0);
  const w=(0.16+r()*0.1)*(r()<0.5?1:-1),R0=near?14+r()*12:20+r()*25,h0=near?9+r()*8:12+r()*12,ph0=r()*TAU;
  for(let k=0;k<n;k++)BIRDS.push({cx:bx,cz:bz,R:R0+(r()-0.5)*6,h:h0+(r()-0.5)*3,w:w*(0.95+r()*0.1),ph:ph0+k*0.16+(r()-0.5)*0.1,fl:r()*TAU,fr:6+r()*2})}})();
+/* a fixed star map: each star is one point in a set direction, projected once per frame, so it stays put as you turn */
+const STARS=(function(){const r=rng(7177),a=[];for(let k=0;k<520;k++){const y=0.035+r()*0.965,th=r()*TAU,c=Math.sqrt(1-y*y);const m=Math.pow(r(),2.6),tn=r();
+  a.push({x:c*Math.sin(th),y,z:c*Math.cos(th),m,ph:r()*TAU,f:1.2+r()*2,col:tn<0.15?[1,0.86,0.7]:tn<0.35?[0.75,0.85,1]:[0.95,0.96,1]})}return a})();
+function starPass(){if(nightK<0.05||stormK>0.85)return;const G1=G('·'),G2=G('+'),G3=G('*'),G0=G('.');
+ for(const q of STARS){if(!proj(cx+q.x*4000,cy+q.y*4000,cz+q.z*4000))continue;const i=Math.floor(pjx),j=Math.floor(pjy);if(i<0||j<0||i>=COLS||j>=ROWS)continue;if(zbuf[j*COLS+i]<1e9)continue;
+  const md=q.x*MOONV[0]+q.y*MOONV[1]+q.z*MOONV[2];if(md>0.993)continue;
+  const t=(90-cy)/q.y;const cl=smooth(CLA,CLB,fbm((cx+q.x*t)*0.005+T*CLS,(cz+q.z*t)*0.005+T*0.002,4))*smooth(0.015,0.12,q.y);if(cl>0.45)continue;
+  const tw=0.82+0.18*Math.sin(T*q.f+q.ph);const b=(0.3+0.9*q.m)*nightK*(1-cl*2.2)*(1-stormK)*tw*smooth(0.03,0.12,q.y);if(b<0.08)continue;
+  plot(i,j,5e8,q.m>0.8?G3:q.m>0.5?G2:q.m>0.2?G1:G0,q.col[0]*b,q.col[1]*b,q.col[2]*b)}}
 function birdPass(){if(dayL<0.35||stormK>0.6)return;const GV=G('v'),GW=G('~'),GH=G('^');
  for(const b of BIRDS){const a=b.ph+T*b.w;const x=b.cx+Math.cos(a)*b.R,z=b.cz+Math.sin(a)*b.R,y=b.h+Math.sin(T*0.35+b.fl)*1.2;
   if(!proj(x,y,z))continue;const d=pjd;if(d>280)continue;const bx=pjx,by=pjy;
@@ -1488,6 +1498,12 @@ function callAnimals(){const callR=120+130*sonarLv;const dL=Math.hypot(POD.x-P.x
 function wputc(i,j,ch,r,g,b,bgk){if(i<0||j<0||i>=COLS||j>=ROWS)return;const k=j*COLS+i;gl[k]=G(ch);fR[k]=r;fG[k]=g;fB[k]=b;if(bgk>=0){bR[k]*=bgk;bG[k]*=bgk;bB[k]*=bgk}}
 function putc(i,j,ch,r,g,b,bgk){i|=0;j|=0;if(i<0||j<0||i>=UCOLS||j>=UROWS)return;const k=j*UCOLS+i;ugl[k]=G(ch);uR[k]=r;uG[k]=g;uB[k]=b;if(bgk>=0)uK[k]*=bgk}
 function puts(i,j,s,r,g,b,bgk){for(let k=0;k<s.length;k++)putc(i+k,j,s[k],r,g,b,bgk===undefined?-1:bgk)}
+/* big block letters: a 5-pixel-tall font drawn with half blocks, 3 rows of characters */
+const BIGF={A:'.##.|#..#|####|#..#|#..#',B:'###.|#..#|###.|#..#|###.',C:'.###|#...|#...|#...|.###',D:'###.|#..#|#..#|#..#|###.',E:'####|#...|###.|#...|####',F:'####|#...|###.|#...|#...',G:'.###|#...|#.##|#..#|.###',H:'#..#|#..#|####|#..#|#..#',I:'###|.#.|.#.|.#.|###',J:'..##|...#|...#|#..#|.##.',K:'#..#|#.#.|##..|#.#.|#..#',L:'#...|#...|#...|#...|####',M:'#...#|##.##|#.#.#|#...#|#...#',N:'#..#|##.#|#.##|#..#|#..#',O:'.##.|#..#|#..#|#..#|.##.',P:'###.|#..#|###.|#...|#...',Q:'.##.|#..#|#..#|#.##|.###',R:'###.|#..#|###.|#.#.|#..#',S:'.###|#...|.##.|...#|###.',T:'###|.#.|.#.|.#.|.#.',U:'#..#|#..#|#..#|#..#|.##.',V:'#...#|#...#|.#.#.|.#.#.|..#..',W:'#...#|#...#|#.#.#|##.##|#...#',X:'#..#|#..#|.##.|#..#|#..#',Y:'#.#|#.#|.#.|.#.|.#.',Z:'####|...#|.##.|#...|####',' ':'..|..|..|..|..'};
+function bigW(s){let w=0;for(const c of s){const f=BIGF[c]||BIGF[' '];w+=f.indexOf('|')+1}return w-1}
+function bigText(i0,j0,s,r,g,b){let i=i0;for(const c of s){const rows=(BIGF[c]||BIGF[' ']).split('|');const w=rows[0].length;
+  for(let cj=0;cj<3;cj++)for(let x=0;x<w;x++){const t=rows[cj*2][x]==='#',u=cj*2+1<5&&rows[cj*2+1][x]==='#';if(t||u)putc(i+x,j0+cj,t&&u?'█':t?'▀':'▄',r,g,b,-1)}i+=w+1}}
+function bigC(j,s,r,g,b){bigText(Math.floor((UCOLS-bigW(s))/2),j,s,r,g,b)}
 function putsC(j,s,r,g,b,bgk){puts(Math.floor((UCOLS-s.length)/2),j,s,r,g,b,bgk)}
 function wrap(s,w){const words=s.split(' ');const lines=[];let cur='';for(const wd of words){if((cur+' '+wd).trim().length>w){lines.push(cur);cur=wd}else cur=(cur+' '+wd).trim()}if(cur)lines.push(cur);return lines}
 function panelBox(i0,j0,w,h,col,dim){for(let j=j0;j<j0+h;j++)for(let i=i0;i<i0+w;i++){if(i<0||j<0||i>=UCOLS||j>=UROWS)continue;const k=j*UCOLS+i;ugl[k]=0;uK[k]*=dim}
@@ -1508,8 +1524,7 @@ function hudPass(){
   {const a=T-S.startT-2.5;if(a>0&&a<NARR.length*4.6&&found===0){const n=Math.floor(a/4.6),u=a-n*4.6;const k=smooth(0,0.8,u)*(1-smooth(3.8,4.6,u));putsC(Math.floor(ROWS*0.32),NARR[n],0.95*k,0.88*k,0.62*k,1-0.65*k)}}
   // mission
   {const a=T-S.startT;const nr=RL.find(q=>!q.found);if(a>9&&!S.paused){const k=smooth(9,11,a);const j=5;const bk=1-0.7*k;
-    if(nr){const zq=zoneAt(nr.x,nr.z,-nr.y),zn=ZN[zq].toLowerCase();puts(2,j,'MISSION '+(found+1)+'/8',1*k,0.82*k,0.42*k,bk);puts(2,j+1,nr.title,0.95*k,0.92*k,0.75*k,bk);puts(2,j+2,(zq===4?'somewhere in the ':'somewhere in the ')+zn,0.6*k,0.8*k,0.85*k,bk);
-     const g=POD.guide&&POD.st!=='wander';puts(2,j+3,g?'follow the glowing dolphin':'press F to whistle for the dolphins',0.45*k,0.95*k,0.85*k,bk)}
+    if(nr){puts(2,j,'MISSION '+(found+1)+'/8',1*k,0.82*k,0.42*k,bk);puts(2,j+1,nr.title,0.95*k,0.92*k,0.75*k,bk)}
     else puts(2,j,'ATLANTIS IS AWAKE',1*k,0.85*k,0.45*k,bk)}}
   {const nc=creLog.filter(v=>v).length;const ls='LOG '+nc+'/'+CRE.length+(pearls?'   PEARLS '+pearls+'/3':'');puts(COLS-ls.length-2,4,ls,0.75,0.8,0.95,0.3)}
   {const ca=T-camT;if(ca>=0&&ca<0.75){const a=1-ca/0.75,c=0.95*a;const w=Math.min(26,COLS/4|0),h=Math.min(9,ROWS/4|0);const i0=(COLS>>1)-w,i1=(COLS>>1)+w,j0=(ROWS>>1)-h,j1=(ROWS>>1)+h;
@@ -1532,14 +1547,14 @@ function hudPass(){
    if(zz>0.5&&ii>3&&ii<COLS-4&&jj>3&&jj<ROWS-3){if(Math.hypot(vx,vy,vz)>7){putc(Math.floor(ii),Math.floor(jj)-2,'▼',0.4*bl,1*bl,0.9*bl,-1);puts(Math.floor(ii)-3,Math.floor(jj)+2,'follow',0.4*bl,1*bl,0.9*bl,0.45)}}
    else{let ax=xx,ay=yy;const l=Math.hypot(ax,ay);if(l<1e-4){ax=0;ay=-1}else{ax/=l;ay/=l}const mx=COLS*0.5-8,my=ROWS*0.5-3;const s2=1/Math.max(Math.abs(ax)/mx,Math.abs(ay)/my);const ei=Math.round(COLS*0.5+ax*s2),ej=Math.round(ROWS*0.5-ay*s2);
     const ch=Math.abs(ax)*CH>Math.abs(ay)*CW?(ax>0?'►':'◄'):(ay>0?'▲':'▼');putc(ei,ej,ch,0.4*bl,1*bl,0.9*bl,0.4);const lab='dolphin';puts(ax>0.3?ei-lab.length-1:ax<-0.3?ei+2:ei-3,Math.abs(ax)>0.3?ej:(ay>0?ej+1:ej-1),lab,0.4*bl,1*bl,0.9*bl,0.4)}}
-  if(S.paused){panelBox(COLS/2-18|0,ROWS/2-3|0,36,6,[0.5,0.9,1],0.15);putsC(ROWS/2-1|0,'P A U S E D',0.6,1,1);putsC(ROWS/2+1|0,'move or click to resume   M mute',0.4,0.75,0.85)}
+  if(S.paused){const j0=ROWS/2-5|0;panelBox(COLS/2-22|0,j0,44,10,[0.5,0.9,1],0.15);const k=0.85+0.15*Math.sin(T*2);bigC(j0+2,'PAUSED',0.6*k,1*k,1*k);putsC(j0+6,'-'.repeat(30),0.2,0.4,0.45);putsC(j0+7,'[CLICK] resume   [M] mute   [J] journal',0.45,0.8,0.9)}
  }
  // relic panel
  if(panel&&!journal.open){const age=T-panel.t0;const q=panel.rel;if(age>26){panel=null}else{const w=Math.min(78,COLS-8);const lines=wrap(q.text,w-6);const h=lines.length+7;const i0=Math.floor((COLS-w)/2),j0=Math.max(3,ROWS-h-3);
    const fade=Math.min(1,age*2)*(1-smooth(23,26,age));panelBox(i0,j0,w,h,[1*fade+0.05,0.8*fade+0.05,0.4*fade+0.05],0.12);
    puts(i0+3,j0+1,(panel.hd||'RELIC '+found+'/8')+'   '+q.title,1*fade,0.85*fade,0.45*fade);puts(i0+3,j0+2,'─'.repeat(w-6),0.4*fade,0.55*fade,0.6*fade);
    let n=Math.floor(age*55);for(let k=0;k<lines.length;k++){const s=lines[k].slice(0,Math.max(0,n));n-=lines[k].length+1;if(s.length)puts(i0+3,j0+3+k,s,0.75*fade+0.1,0.95*fade+0.05,1*fade+0.05)}
-   if(panel.up&&age>2.5){const a2=fade*Math.min(1,(age-2.5)*2);puts(i0+3,j0+h-3,'+ '+panel.up,0.55*a2,1*a2,0.7*a2)}puts(i0+3,j0+h-2,'J  open journal',0.3*fade,0.5*fade,0.6*fade)}}
+   if(panel.up&&age>2.5){const a2=fade*Math.min(1,(age-2.5)*2);puts(i0+3,j0+h-3,'+ '+panel.up,0.55*a2,1*a2,0.7*a2)}puts(i0+3,j0+h-2,(age*55<q.text.length?'ENTER  show all':'ENTER  close')+'      J  journal',0.3*fade,0.5*fade,0.6*fade)}}
  if(S.mode==='play'&&endingT>0&&T-endingT>12&&T-endingT<40){const a=smooth(12,15,T-endingT)*(1-smooth(36,40,T-endingT));putsC(Math.floor(ROWS*0.3),'T H E   D O O R   I S   O P E N',1*a,0.85*a,0.5*a,1-0.8*a);putsC(Math.floor(ROWS*0.3)+2,'Atlantis is awake. swim as long as you like',0.5*a,0.8*a,0.9*a,1-0.7*a)}
  if(S.mode==='play'&&endingT>0&&T-endingT>40&&endPanel<2){endPanel=1;const e=T-endingT-40;const w=Math.min(UCOLS-6,64),h=Math.min(UROWS-4,25);const i0=Math.floor((UCOLS-w)/2),j0=Math.floor((UROWS-h)/2);const fd=Math.min(1,e*0.8);
   panelBox(i0,j0,w,h,[1,0.85,0.5],0.12*fd);const ct=(j,s,r,g,b)=>puts(i0+Math.floor((w-s.length)/2),j,s,r*fd,g*fd,b*fd);
@@ -1685,7 +1700,7 @@ function step(ms){
  const t1=performance.now();
  primPass();worldPass();
  const t2=performance.now();
- if(cy>0){birdPass();boltPass();rainPass();splashPass();showPass()}else{floraPass();edgePass();fishPass();animalPass();critterPass();jellyPass();treasurePass();ventPass();splashPass();showPass();particlePass(paused?0:dt)}
+ if(cy>0){starPass();birdPass();boltPass();rainPass();splashPass();showPass()}else{floraPass();edgePass();fishPass();animalPass();critterPass();jellyPass();treasurePass();ventPass();splashPass();showPass();particlePass(paused?0:dt)}
  const t3=performance.now();
  ugl.fill(0);uK.fill(1);
  if(S.mode==='title')titlePass();else hudPass();
