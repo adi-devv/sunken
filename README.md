@@ -14,7 +14,9 @@ Every frame is ray-marched on the CPU, one ray per character cell, then shaded w
 
 ## Play
 
-Open `sunken.html` in Chrome or Edge, or serve the folder:
+Play it online: **https://adi-devv.github.io/sunken/**
+
+Or run it locally: open `sunken.html` in Chrome or Edge, or serve the folder:
 
 ```bash
 python -m http.server 8000
