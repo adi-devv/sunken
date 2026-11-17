@@ -134,12 +134,16 @@ const box=(x,y,z,a,b,c,mat,col,rel)=>addP({k:0,x,y,z,a,b,c,mat,col,rel});
 const cyl=(x,y,z,ax,r,hl,mat,col,rel)=>addP({k:1,x,y,z,ax,r,hl,mat,col,rel});
 const sph=(x,y,z,a,b,c,mat,col,rel)=>addP({k:2,x,y,z,a,b,c,mat,col,rel});
 const BRAZ=[];const lightSrc=[];
-function column(x,z,h,r,broken,rel){const y0=H(x,z)-1.5,hl=(h+1.5)/2;cyl(x,y0+hl,z,1,r,hl,0);if(!broken){box(x,y0+h+1.5+0.3,z,r*1.45,0.35,r*1.45,0);box(x,y0+1.6,z,r*1.5,0.4,r*1.5,0)}else if(h>2){box(x+r*0.3,y0+h+1.5+0.2,z,r*0.5,0.25,r*0.6,0)}}
-function arch(x,z,w,h,ax){const r=0.75;const dx=ax===0?w/2:0,dz=ax===0?0:w/2;column(x-dx,z-dz,h,r,false);column(x+dx,z+dz,h,r,false);
+const HULL=[0.6,0.68,0.76],GLASS=[0.2,0.5,0.6],LCOL=[[0.3,0.9,1],[0.7,0.45,1],[0.35,1,0.8]];
+// light pylon: smooth hull shaft, base plate, glowing tip (tip=false when it holds up a gate)
+function column(x,z,h,r,broken,rel,tip){const y0=H(x,z)-1.5,hl=(h+1.5)/2;cyl(x,y0+hl,z,1,r*0.78,hl,7,HULL);box(x,y0+1.6,z,r*1.15,0.4,r*1.15,7,HULL);
+ if(tip!==false){const top=y0+h+1.5;cyl(x,top+0.2,z,1,r*1.05,0.2,7,HULL);sph(x,top+0.85,z,r*0.42,r*0.62,r*0.42,3,LCOL[(Math.abs(x*3+z)|0)%3])}}
+// gate: two pylons, a hull lintel and a glowing light bar underneath
+function arch(x,z,w,h,ax){const r=0.75;const dx=ax===0?w/2:0,dz=ax===0?0:w/2;column(x-dx,z-dz,h,r,false,-1,false);column(x+dx,z+dz,h,r,false,-1,false);
  const y0=Math.max(H(x-dx,z-dz),H(x+dx,z+dz));const top=y0-1.5+h+1.5+0.7;
- box(x,top+0.7,z,ax===0?w/2+1.2:0.9,0.7,ax===0?0.9:w/2+1.2,0);
- box(x-dx*0.8,top-0.2,z-dz*0.8,ax===0?w*0.14:0.7,0.5,ax===0?0.7:w*0.14,0);box(x+dx*0.8,top-0.2,z+dz*0.8,ax===0?w*0.14:0.7,0.5,ax===0?0.7:w*0.14,0)}
-function braz(x,y,z,col){cyl(x,y-0.4,z,1,0.45,1.0,0);sph(x,y+0.9,z,0.55,0.55,0.55,3,col);BRAZ.push([x,y+0.9,z,col[0],col[1],col[2]])}
+ box(x,top+0.7,z,ax===0?w/2+1.2:0.9,0.7,ax===0?0.9:w/2+1.2,7,HULL);
+ box(x,top-0.12,z,ax===0?w/2-0.4:0.18,0.1,ax===0?0.18:w/2-0.4,3,[0.35,0.9,1])}
+function braz(x,y,z,col){cyl(x,y-0.4,z,1,0.4,1.0,7,HULL);sph(x,y+0.9,z,0.55,0.55,0.55,3,col);BRAZ.push([x,y+0.9,z,col[0],col[1],col[2]])}
 const RL=[]; // relics
 const pos=(z,off)=>[xc(z)+off,z];
 function relicDef(i,z,off,title,text,col){const[x,zz]=pos(z,off);RL.push({i,x,z:zz,y:H(x,zz)+2.5,title,text,col:col||[0.3,0.9,1],found:false,prims:[]});}
@@ -156,22 +160,38 @@ const STORY=[
 function buildRuins(){
  const r=rng(9001);
  // clusters
- function cluster(z,off,n,rad,hmax){const[x0,z0]=pos(z,off);for(let k=0;k<n;k++){const a=r()*TAU,d=r()*rad;const x=x0+Math.cos(a)*d,zz=z0+Math.sin(a)*d;const broken=r()<0.65;const h=broken?1+r()*(hmax*0.7):hmax*(0.8+r()*0.3);column(x,zz,h,0.8+r()*0.4,broken)}
-  if(r()<0.7){const a=r()*TAU;const x=x0+Math.cos(a)*rad*0.5,zz=z0+Math.sin(a)*rad*0.5;const len=3+r()*3;const y=H(x,zz)+0.5;if(r()<0.5)cyl(x,y,zz,0,0.9,len,0);else cyl(x,y,zz,2,0.9,len,0)}
-  if(r()<0.6){const a=r()*TAU;const x=x0+Math.cos(a)*rad*0.7,zz=z0+Math.sin(a)*rad*0.7;box(x,H(x,zz)+0.6,zz,1.5+r()*3,1+r()*1.2,0.5,0)}
-  if(r()<0.5)arch(x0+r()*4,z0+r()*4,6+r()*3,5+r()*2,r()<0.5?0:2)}
+ const LC=()=>LCOL[r()*3|0];
+ function building(x,z,kind,hmax){const g=H(x,z);
+  if(kind===0){ // tower: hull shaft with light rings, a deck, a glass crown and an antenna
+   const rr=1.3+r()*0.9,h=hmax*(1.3+r()*1.3),y0=g-1.5,hl=(h+1.5)/2;cyl(x,y0+hl,z,1,rr,hl,7,HULL);
+   cyl(x,y0+1.5+h*0.55,z,1,rr*1.4,0.3,7,HULL);
+   const top=y0+h+1.5;sph(x,top,z,rr*1.08,rr*0.95,rr*1.08,8,GLASS);
+   const sh=1.5+r()*3;cyl(x,top+rr*0.8+sh/2,z,1,0.12,sh/2,7,HULL);sph(x,top+rr*0.8+sh+0.25,z,0.3,0.3,0.3,3,LC());return}
+  if(kind===1){ // glass dome habitat on a hull ring
+   const rr=3+r()*2;cyl(x,g+0.2,z,1,rr+0.45,0.75,7,HULL);sph(x,g+0.95,z,rr,rr*0.72,rr,8,GLASS);return}
+  // stepped block tower
+  const w=1.6+r()*1.2,d=1.6+r()*1.2;let y=g-1;const n=2+(r()*2|0);
+  for(let k=0;k<n;k++){const hh=1.5+r()*1.4,sc=1-k*0.2;box(x,y+hh,z,w*sc,hh,d*sc,7,HULL);y+=hh*2}
+  cyl(x,y+0.9,z,1,0.1,0.9,7,HULL);sph(x,y+2,z,0.26,0.26,0.26,3,LC())}
+ function cluster(z,off,n,rad,hmax){const[x0,z0]=pos(z,off);building(x0,z0,1,hmax);
+  const D=[[1,0],[-1,0],[0,1],[0,-1]],s0=r()*4|0,ns=Math.min(4,n-2);
+  for(let k=0;k<ns;k++){const dd=D[(s0+k)%4],d=rad*(0.85+r()*0.4);const xs=x0+dd[0]*d,zs=z0+dd[1]*d;building(xs,zs,r()<0.55?0:2,hmax);
+   // glass transit tube from the hub dome to this building
+   const ty=Math.max(H(x0,z0),H(xs,zs))+2.3;cyl((x0+xs)/2,ty,(z0+zs)/2,dd[0]?0:2,0.62,d/2,8,GLASS)}
+  for(let k=ns;k<n-1;k++){const a=r()*TAU,d=rad*(0.5+r()*0.5);column(x0+Math.cos(a)*d,z0+Math.sin(a)*d,2+r()*4,0.7,false)}
+  if(r()<0.5){const a=r()*TAU;arch(x0+Math.cos(a)*rad*1.4,z0+Math.sin(a)*rad*1.4,6+r()*3,5+r()*2,r()<0.5?0:2)}}
  for(const c of [[100,-26],[135,24],[175,-30],[185,18],[230,-22],[245,26],[275,22],[300,-34],[320,15]])cluster(c[0],c[1],5+(r()*3|0),9,7);
  // relics
  relicDef(0,60,12);relicDef(1,140,-14);relicDef(2,215,10);relicDef(3,285,-16);relicDef(4,372,5,0,0,[0.4,0.95,1]);relicDef(5,445,0);relicDef(6,505,-12);
  {const x=TEMPLE.x,z=TEMPLE.z+23;RL.push({i:7,x,z,y:TEMPLE.y0+11,title:'',text:'',col:[1,0.85,0.4],found:false,prims:[]})}
  RL.forEach((q,i)=>{q.title=STORY[i][0];q.text=STORY[i][1]});
- const mark=(q,fn)=>{const a=PR.length;fn(q);for(let k=a;k<PR.length;k++){PR[k].rel=q.i;q.prims.push(PR[k])}};
+ const mark=(q,fn)=>{const a=PR.length;fn(q);for(let k=a;k<PR.length;k++){const p=PR[k];p.rel=q.i;if(p.mat===0){p.mat=7;p.col=HULL}q.prims.push(p)}};
  // R0 tablet
  mark(RL[0],q=>{const x=q.x,z=q.z,y=H(x,z);box(x,y+1.4,z,1.1,1.8,0.32,0);box(x,y,z,1.7,0.5,0.9,0);box(x-2.6,y+0.4,z+0.6,0.7,0.7,0.5,0);box(x+2.2,y+0.2,z-0.8,0.5,0.5,0.9,0)});
  // R1 lamp-bearer
  mark(RL[1],q=>{const x=q.x,z=q.z,y=H(x,z);box(x,y+0.4,z,1.6,1.2,1.6,0);cyl(x,y+3.2,z,1,0.75,2.1,0);sph(x,y+5.7,z,0.6,0.65,0.6,0);box(x+0.9,y+4.4,z+0.45,0.15,0.9,0.15,0);sph(x+1.1,y+5.45,z+0.5,0.3,0.3,0.3,3,[1,0.85,0.4]);box(x-0.9,y+4.1,z,0.18,0.6,0.18,0)});
  // R2 ledger pillar (fallen)
- mark(RL[2],q=>{const x=q.x,z=q.z,y=H(x,z);cyl(x,y+1.0,z,2,1.2,6,0);box(x,y+0.2,z-5.6,1.4,0.6,0.5,0);cyl(x+4.5,y+0.5,z+2,1,0.9,1.5,0)});
+ mark(RL[2],q=>{const x=q.x,z=q.z,y=H(x,z);box(x,y+0.3,z,2.2,0.6,2.2,0);cyl(x,y+6,z,1,1.1,5.5,0);sph(x,y+12.2,z,0.7,0.9,0.7,3,[0.3,0.9,1]);cyl(x+4.5,y+1.5,z+2,1,0.6,2.5,0)});
  // R3 bell
  mark(RL[3],q=>{const x=q.x,z=q.z,y=H(x,z);cyl(x-3.2,y+4,z,1,0.7,5.5,0);cyl(x+3.2,y+4,z,1,0.7,5.5,0);box(x,y+9.7,z,4.2,0.55,0.7,0);sph(x,y+6.4,z,1.9,2.2,1.9,2,[0.55,0.45,0.25]);cyl(x,y+8.9,z,1,0.15,0.9,2,[0.4,0.35,0.2]);sph(x,y+4.4,z,0.35,0.35,0.35,2,[0.4,0.35,0.2]);box(x,y+0.3,z,4.5,0.6,1.8,0)});
  // R4 tablet at foot of stairs
@@ -182,34 +202,34 @@ function buildRuins(){
  // R6 beacon
  mark(RL[6],q=>{const x=q.x,z=q.z,y=H(x,z);box(x,y+0.5,z,3.2,1.0,3.2,0);box(x,y+4,z,1.9,3,1.9,0);box(x,y+9.5,z,1.4,3,1.4,0);box(x,y+14,z,0.9,2,0.9,0);sph(x,y+17.6,z,1.1,1.5,1.1,3,[0.4,0.95,1]);BRAZ.push([x,y+17.6,z,0.4,0.95,1.0])});
  // zone 3 stairs
- {let ai=0;for(let i=0;i<46;i++){const z=332+i*1.5,x=xc(z),top=H(x,z)+0.5;box(x,top-1.5,z,5.5,1.5,0.75,0);
-   if(i%3===0){box(x-6.3,top+0.4,z+0.75,0.55,1.7,2.4,0);box(x+6.3,top+0.4,z+0.75,0.55,1.7,2.4,0)}
+ {let ai=0;for(let i=0;i<46;i++){const z=332+i*1.5,x=xc(z),top=H(x,z)+0.5;box(x,top-1.5,z,5.5,1.5,0.75,7,HULL);
+   if(i%3===0){box(x-6.3,top+0.4,z+0.75,0.55,1.7,2.4,7,HULL);box(x+6.3,top+0.4,z+0.75,0.55,1.7,2.4,7,HULL)}
    if(i%9===4){arch(x,z,10.2,7.5,0);ai++;braz(x-6.3,top+2.2,z+0.75,[0.3,0.85,1]);braz(x+6.3,top+2.2,z+0.75,[0.7,0.4,1])}}}
  cluster(350,-38,5,8,8);cluster(412,38,6,9,9);cluster(430,-40,5,9,8);
  // avenue to the temple
- for(let k=0;k<9;k++){const z=470+k*10.5,x=xc(z);const br1=r()<0.3,br2=r()<0.3;column(x-9,z,br1?3+r()*5:11,1.0,br1);column(x+9,z,br2?3+r()*5:11,1.0,br2);
+ for(let k=0;k<9;k++){const z=470+k*10.5,x=xc(z);column(x-9,z,11,1.0,false);column(x+9,z,11,1.0,false);
   braz(x-5,H(x-5,z)+0.8,z,k&1?[0.3,0.85,1]:[0.7,0.4,1]);braz(x+5,H(x+5,z)+0.8,z,k&1?[0.7,0.4,1]:[0.3,0.85,1])}
  // temple
- {const tx=TEMPLE.x,tz=TEMPLE.z,y0=TEMPLE.y0,F=y0+8;const TS=[0.78,0.8,0.84];
-  const bx=(x,y,z,a,b,c,rel)=>{const p=box(x,y,z,a,b,c,1,TS,rel);return p};
+ {const tx=TEMPLE.x,tz=TEMPLE.z,y0=TEMPLE.y0,F=y0+8;const TS=[0.7,0.77,0.85];
+  const bx=(x,y,z,a,b,c,rel)=>{const p=box(x,y,z,a,b,c,7,TS,rel);return p};
   bx(tx,y0+1.5,tz,22,1.5,32);bx(tx,y0+4.5,tz,19,1.5,29.5);bx(tx,y0+7,tz,17,1,27);
   for(let s=0;s<6;s++)bx(tx,y0+0.25*(s+1)-0.3,tz-44+s*2+0.5,11,0.3+0.25*s+0.0,1.0);
   for(let s=0;s<3;s++)bx(tx,y0+3+0.5*(s+1)-0.5,tz-31.5+s*1.0,9,0.5,0.6);
   const colH=13;
-  for(let k=0;k<9;k++){const z=tz-24+k*6;for(const sx of[-12.5,12.5]){const broken=(k===2&&sx>0)||(k===6&&sx<0);const hh=broken?5+r()*3:colH;const hl=(hh+0.5)/2;cyl(tx+sx,F-0.5+hl,z,1,1.25,hl,1,TS);if(!broken){box(tx+sx,F+hh+0.2,z,1.8,0.35,1.8,1,TS);box(tx+sx,F+0.2,z,1.8,0.3,1.8,1,TS)}}}
-  for(let k=0;k<5;k++){const x=tx-12+k*6;const hl=(colH+0.5)/2;cyl(x,F-0.5+hl,tz-26.5,1,1.25,hl,1,TS);box(x,F+colH+0.2,tz-26.5,1.8,0.35,1.8,1,TS)}
+  for(let k=0;k<9;k++){const z=tz-24+k*6;for(const sx of[-12.5,12.5]){const hh=colH;const hl=(hh+0.5)/2;cyl(tx+sx,F-0.5+hl,z,1,1.1,hl,7,TS);box(tx+sx,F+hh+0.2,z,1.6,0.35,1.6,7,TS);box(tx+sx,F+0.2,z,1.6,0.3,1.6,7,TS)}}
+  for(let k=0;k<5;k++){const x=tx-12+k*6;const hl=(colH+0.5)/2;cyl(x,F-0.5+hl,tz-26.5,1,1.1,hl,7,TS);box(x,F+colH+0.2,tz-26.5,1.6,0.35,1.6,7,TS)}
   bx(tx,F+colH+0.9,tz,15,0.8,27.5);bx(tx,F+colH+2.4,tz,16,0.7,28.5);
-  bx(tx-8,F+colH+4,tz-27.5,6.5,0.6,0.8);bx(tx+9,F+colH+4,tz-27.5,5,0.6,0.8);bx(tx-9,F+colH+5.2,tz-27.5,3.5,0.6,0.8);bx(tx+10,F+colH+5.2,tz-27.5,2.5,0.5,0.8);
+  box(tx,F+colH+1.55,tz-27.9,14.5,0.1,0.2,3,[0.35,0.9,1]);sph(tx,F+colH+3.1,tz+1,11,7.5,17,8,GLASS);for(const sx of[-1,1]){const x=tx+sx*13,z=tz+24;cyl(x,F+colH+7,z,1,0.9,4,7,TS);sph(x,F+colH+11.6,z,0.8,0.8,0.8,3,[0.3,0.9,1])}
   // inner sanctum
   bx(tx-8.8,F+7,tz+25,4.2,7,1.2);bx(tx+8.8,F+7,tz+25,4.2,7,1.2);bx(tx,F+10.4,tz+25,4.6,3.6,1.2);
   bx(tx-7.6,F+7,tz+16,0.8,7,8.8);bx(tx+7.6,F+7,tz+16,0.8,7,8.8);
   box(tx,F+3.4,tz+26.4,3.2,3.4,0.4,3,[1,0.8,0.35],-1);
   const q=RL[7];
-  q.dl=box(tx-2.3,F+3.4,tz+24.2,2.3,3.4,0.4,1,[0.55,0.6,0.7],7);q.dr=box(tx+2.3,F+3.4,tz+24.2,2.3,3.4,0.4,1,[0.55,0.6,0.7],7);q.dl.x0=q.dl.x;q.dr.x0=q.dr.x;
+  q.dl=box(tx-2.3,F+3.4,tz+24.2,2.3,3.4,0.4,7,[0.5,0.58,0.7],7);q.dr=box(tx+2.3,F+3.4,tz+24.2,2.3,3.4,0.4,7,[0.5,0.58,0.7],7);q.dl.x0=q.dl.x;q.dr.x0=q.dr.x;
   q.prims.push(q.dl,q.dr);
   bx(tx-5.4,F+3.4,tz+24.2,0.5,3.4,0.6,7);bx(tx+5.4,F+3.4,tz+24.2,0.5,3.4,0.6,7);
   // colossi
-  for(const sx of[-1,1]){const x=tx+sx*15,z=tz-38,y=H(x,z);box(x,y+2,z,3.2,2.4,3.2,1,TS);box(x,y+7.5,z,2.2,3.6,1.7,1,TS);box(x-sx*1.5,y+9,z-1,0.6,2.2,0.6,1,TS);box(x+sx*1.5,y+9,z-1,0.6,2.2,0.6,1,TS);sph(x,y+12.2,z,1.8,2.1,1.8,1,TS);box(x,y+13.9,z,2.2,0.5,2.2,1,TS)}
+  for(const sx of[-1,1]){const x=tx+sx*15,z=tz-38,y=H(x,z);box(x,y+2,z,3.2,2.4,3.2,7,TS);box(x,y+7.5,z,2.2,3.6,1.7,7,TS);box(x-sx*1.5,y+9,z-1,0.6,2.2,0.6,7,TS);box(x+sx*1.5,y+9,z-1,0.6,2.2,0.6,7,TS);sph(x,y+12.2,z,1.8,2.1,1.8,7,TS);box(x,y+13.9,z,2.2,0.5,2.2,7,TS)}
   braz(tx-6,F+0.4,tz-20,[1,0.8,0.4]);braz(tx+6,F+0.4,tz-20,[1,0.8,0.4]);braz(tx-6,F+0.4,tz+10,[0.4,0.9,1]);braz(tx+6,F+0.4,tz+10,[0.7,0.45,1]);
  }
  // bioluminescent lichen / big mushroom domes? skip
@@ -220,7 +240,7 @@ const WH=[];for(let i=0;i<13;i++)WH.push({k:2,x:0,y:-30,z:300,a:3,b:3,c:3,mat:4,
 const AN=[],ANP=[];
 function aprim(col){const p={k:2,x:0,y:1e4,z:0,a:0.5,b:0.5,c:0.5,mat:6,col,rel:-1,br:1,em:0};ANP.push(p);return p}
 function mkAnimal(type){const a={type,x:0,y:-8,z:0,vx:0,vy:0,vz:0,dx:0,dy:0,dz:1,st:'wander',stT:0,wx:0,wy:-8,wz:0,wT:0,ph:Math.random()*TAU,parts:[],lead:null,off:[0,0,0],guide:false,gq:null,sp:0};
- if(type===0){for(let k=0;k<6;k++)a.parts.push(aprim([0.52,0.64,0.76]));a.parts.push(aprim([0.42,0.52,0.66]));a.parts.push(aprim([0.42,0.52,0.66]))}
+ if(type===0){for(let k=0;k<9;k++)a.parts.push(aprim([0.52,0.64,0.76]))}
  else if(type===1){a.parts.push(aprim([0.46,0.52,0.26]));a.parts.push(aprim([0.66,0.68,0.46]));for(let k=0;k<4;k++)a.parts.push(aprim([0.56,0.6,0.4]))}
  else if(type===2){a.parts.push(aprim([0.3,0.36,0.5]));a.parts.push(aprim([0.27,0.33,0.47]));a.parts.push(aprim([0.27,0.33,0.47]))}
  else{for(let k=0;k<9;k++)a.parts.push(aprim([0.4,0.44,0.5]))}
@@ -237,13 +257,30 @@ function addFlora(t,x,z,h,ph){const i=FX.length;FX.push(x);FZ.push(z);FY.push(H(
 (function(){const r=rng(777);
  for(let z=-15;z<345;z+=2.5)for(let x=-245;x<245;x+=2.5){const jx=x+(r()-0.5)*2.5,jz=z+(r()-0.5)*2.5;const zf=1-smooth(170,340,jz);if(zf<=0)continue;
   const cl=vnoise(jx*0.035+11,jz*0.035+3);const dn=zf*smooth(0.28,0.55,cl);const hh=H(jx,jz);
-  if(r()<dn*0.5){const h=Math.min(5+r()*10,-1.8-hh);if(h>2)addFlora(0,jx,jz,h,r()*TAU)}
-  else if(r()<zf*0.07)addFlora(1,jx,jz,1.0+r()*1.6,r()*TAU)}
+  if(r()<dn*0.68){const h=Math.min(5+r()*10,-1.8-hh);if(h>2)addFlora(0,jx,jz,h,r()*TAU)}
+  else if(r()<zf*0.1)addFlora(1,jx,jz,1.0+r()*1.6,r()*TAU)
+  else{const c2=vnoise(jx*0.08+5,jz*0.08+71),q=r();
+   if(q<zf*0.035*smooth(0.4,0.7,c2))addFlora(12,jx,jz,0.9+r()*1.3,r()*TAU);
+   else if(q<zf*0.055)addFlora(8,jx,jz,0.7+r()*1.3,r()*TAU);
+   else if(q<zf*0.075)addFlora(10,jx,jz,0.5+r()*0.6,r()*TAU)}}
+ // sea-grass meadows carpeting the shallows and the top of the reef
+ for(let z=-15;z<300;z+=1.7)for(let x=-245;x<245;x+=1.7){const jx=x+(r()-0.5)*1.7,jz=z+(r()-0.5)*1.7;const m=vnoise(jx*0.03+201,jz*0.03+17);const zf=1-smooth(200,300,jz);
+  if(r()<zf*smooth(0.3,0.6,m)*0.55)addFlora(6,jx,jz,0.5+r()*1.0,r()*TAU)}
  for(let z=110;z<400;z+=4.2)for(let x=-200;x<200;x+=4.2){const jx=x+(r()-0.5)*4.2,jz=z+(r()-0.5)*4.2;const cl=vnoise(jx*0.05+90,jz*0.05);const zz=smooth(100,170,jz)*(1-smooth(330,400,jz));
-  if(r()<zz*smooth(0.35,0.65,cl)*0.5)addFlora(r()<0.55?2:3,jx,jz,1.2+r()*2.2,r()*TAU)}
+  if(r()<zz*smooth(0.35,0.65,cl)*0.5)addFlora(r()<0.55?2:3,jx,jz,1.2+r()*2.2,r()*TAU);
+  else{const q=r(),c2=vnoise(jx*0.07+300,jz*0.07+8);
+   if(q<zz*0.16*smooth(0.3,0.6,c2))addFlora(7,jx,jz,1.4+r()*2.2,r()*TAU);
+   else if(q<zz*0.27)addFlora(12,jx,jz,1.0+r()*1.6,r()*TAU);
+   else if(q<zz*0.36)addFlora(8,jx,jz,0.9+r()*1.8,r()*TAU);
+   else if(q<zz*0.45)addFlora(9,jx,jz,1.0+r()*1.8,r()*TAU);
+   else if(q<zz*0.56)addFlora(10,jx,jz,0.5+r()*0.7,r()*TAU)}}
  for(let z=300;z<640;z+=4.5)for(let x=-200;x<200;x+=4.5){const jx=x+(r()-0.5)*4.5,jz=z+(r()-0.5)*4.5;const cl=vnoise(jx*0.06+40,jz*0.06+9);const zz=smooth(300,360,jz);
   if(Math.hypot((jx-TEMPLE.x)*0.7,jz-TEMPLE.z)<26)continue;
-  if(r()<zz*smooth(0.35,0.6,cl)*0.3)addFlora(jz>450||r()<0.4?5:4,jx,jz,1.0+r()*2.4,r()*TAU)}
+  if(r()<zz*smooth(0.35,0.6,cl)*0.42)addFlora(jz>450||r()<0.4?5:4,jx,jz,1.0+r()*2.4,r()*TAU);
+  else{const q=r();
+   if(q<zz*0.12*smooth(0.3,0.6,vnoise(jx*0.09+7,jz*0.09+300)))addFlora(11,jx,jz,1.0+r()*1.8,r()*TAU);
+   else if(q<zz*0.2)addFlora(9,jx,jz,0.9+r()*2.0,r()*TAU);
+   else if(q<zz*0.25)addFlora(7,jx,jz,1.2+r()*1.8,r()*TAU)}}
 })();
 const SCX=[],SCY=[];
 
@@ -394,7 +431,9 @@ function rayCyl(ox,oy,oz,dx,dy,dz,p){let ao,ad,ru,rud,rv,rvd;
  if(A>1e-9){const disc=B*B-A*C;if(disc>=0){const t0=(-B-Math.sqrt(disc))/A;if(t0>0.05){const aa=ao+ad*t0;if(aa>-hl&&aa<hl)t=t0}}}
  if(ad>1e-6||ad<-1e-6){for(let s=-1;s<=1;s+=2){const tc=(s*hl-ao)/ad;if(tc>0.05&&(t<0||tc<t)){const a2=ru+rud*tc,b2=rv+rvd*tc;if(a2*a2+b2*b2<p.r*p.r)t=tc}}}
  return t}
-function raySph(ox,oy,oz,dx,dy,dz,p){const ia=1/p.a,ib=1/p.b,ic=1/p.c;const px=(ox-p.x)*ia,py=(oy-p.y)*ib,pz=(oz-p.z)*ic,qx=dx*ia,qy=dy*ib,qz=dz*ic;
+function raySph(ox,oy,oz,dx,dy,dz,p){const ia=1/p.a,ib=1/p.b,ic=1/p.c;let px,py,pz,qx,qy,qz;const R=p.R;
+ if(R){const ex=ox-p.x,ey=oy-p.y,ez=oz-p.z;px=(ex*R[0]+ey*R[1]+ez*R[2])*ia;py=(ex*R[3]+ey*R[4]+ez*R[5])*ib;pz=(ex*R[6]+ey*R[7]+ez*R[8])*ic;qx=(dx*R[0]+dy*R[1]+dz*R[2])*ia;qy=(dx*R[3]+dy*R[4]+dz*R[5])*ib;qz=(dx*R[6]+dy*R[7]+dz*R[8])*ic}
+ else{px=(ox-p.x)*ia;py=(oy-p.y)*ib;pz=(oz-p.z)*ic;qx=dx*ia;qy=dy*ib;qz=dz*ic}
  const A=qx*qx+qy*qy+qz*qz,B=px*qx+py*qy+pz*qz,C=px*px+py*py+pz*pz-1;const disc=B*B-A*C;if(disc<0)return -1;const t=(-B-Math.sqrt(disc))/A;return t>0.05?t:-1}
 let pnx=0,pny=1,pnz=0,pu=0,pv=0;
 function primNormal(p,hx,hy,hz){
@@ -403,7 +442,8 @@ function primNormal(p,hx,hy,hz){
  else if(p.k===1){let a,u,v;if(p.ax===1){a=hy-p.y;u=hx-p.x;v=hz-p.z}else if(p.ax===0){a=hx-p.x;u=hy-p.y;v=hz-p.z}else{a=hz-p.z;u=hx-p.x;v=hy-p.y}
   let nu,nv,na=0;if(Math.abs(a)>=p.hl-0.02){na=a>0?1:-1;nu=0;nv=0}else{const l=1/Math.sqrt(u*u+v*v+1e-9);nu=u*l;nv=v*l}
   if(p.ax===1){pnx=nu;pny=na;pnz=nv}else if(p.ax===0){pnx=na;pny=nu;pnz=nv}else{pnx=nu;pny=nv;pnz=na}pu=a;pv=Math.atan2(u,v)}
- else{let nx=(hx-p.x)/(p.a*p.a),ny=(hy-p.y)/(p.b*p.b),nz=(hz-p.z)/(p.c*p.c);const l=1/Math.sqrt(nx*nx+ny*ny+nz*nz+1e-12);pnx=nx*l;pny=ny*l;pnz=nz*l;pu=Math.atan2(pnx,pnz);pv=hy}}
+ else{let nx,ny,nz;const R=p.R;if(R){const ex=hx-p.x,ey=hy-p.y,ez=hz-p.z;const la=(ex*R[0]+ey*R[1]+ez*R[2])/(p.a*p.a),lb=(ex*R[3]+ey*R[4]+ez*R[5])/(p.b*p.b),lc=(ex*R[6]+ey*R[7]+ez*R[8])/(p.c*p.c);nx=la*R[0]+lb*R[3]+lc*R[6];ny=la*R[1]+lb*R[4]+lc*R[7];nz=la*R[2]+lb*R[5]+lc*R[8]}
+  else{nx=(hx-p.x)/(p.a*p.a);ny=(hy-p.y)/(p.b*p.b);nz=(hz-p.z)/(p.c*p.c)}const l=1/Math.sqrt(nx*nx+ny*ny+nz*nz+1e-12);pnx=nx*l;pny=ny*l;pnz=nz*l;pu=Math.atan2(pnx,pnz);pv=hy}}
 
 /* ================= WORLD RENDER ================= */
 let sCol=0,sRamp=null,sGl=-1,sLum=0,sT=1,sGlow=0;
@@ -496,12 +536,12 @@ function worldPass(){
    }else{
     const dep=-hy;const l=li(dep);const rel=p.rel>=0?RL[p.rel]:null;
     let ar=p.col[0],ag=p.col[1],ab=p.col[2];
-    const nn=vnoise(hx*0.9+hy*0.7,hz*0.9+hy*0.3);ar*=0.78+0.4*nn;ag*=0.78+0.4*nn;ab*=0.78+0.4*nn;
+    const nn=vnoise(hx*0.9+hy*0.7,hz*0.9+hy*0.3);const nq=p.mat>=7?0.93+0.14*nn:0.78+0.4*nn;ar*=nq;ag*=nq;ab*=nq;
     const gh=H(hx,hz);const gr=clamp((hy-gh)/3,0,1);const aoG=0.5+0.5*gr;
     let emR=0,emG=0,emB=0;let glyph=-1;
     // moss
     const wz=1-smooth(30,64,dep);
-    if(ny>0.3&&p.mat!==3&&p.mat!==2&&p.mat!==6){const m=smooth(0.42,0.7,vnoise(hx*0.7,hz*0.7+hy))*wz*(p.mat===1?0.4:1);ar=lerp(ar,0.28,m);ag=lerp(ag,0.5,m);ab=lerp(ab,0.2,m)}
+    if(ny>0.3&&p.mat!==3&&p.mat!==2&&p.mat<6){const m=smooth(0.42,0.7,vnoise(hx*0.7,hz*0.7+hy))*wz*(p.mat===1?0.4:1);ar=lerp(ar,0.28,m);ag=lerp(ag,0.5,m);ab=lerp(ab,0.2,m)}
     let lineGlyph=-1,lineDark=1;
     if(p.mat===0||p.mat===1||p.mat===5){
      if(p.k===1){const fl=Math.sin(pv*11);const sh=0.88+0.12*fl;ar*=sh;ag*=sh;ab*=sh;const jn=pu/1.7;if(jn-Math.floor(jn)<0.06){lineDark=0.55;lineGlyph=G('-')}}
@@ -511,8 +551,26 @@ function worldPass(){
       if(aw>0){const e=aw*(0.75+0.25*Math.sin(tnow*1.6+hx*0.3+hz*0.2))*1.2;emR+=1.0*e;emG+=0.7*e;emB+=0.28*e;lineDark=1}}
      if(dep>58&&ny<0.5){const lc=vnoise(hx*0.55+hy*0.3,hz*0.55);if(lc>0.7){const k=(lc-0.7)*3;emR=0.1*k;emG=0.7*k;emB=0.9*k}}
     }else if(p.mat===2){const pn=vnoise(hx*1.3,hz*1.3+hy);const m=smooth(0.4,0.65,pn);ar=lerp(ar,0.22,m);ag=lerp(ag,0.55,m);ab=lerp(ab,0.45,m)}
+    else if(p.mat===7||p.mat===8){
+     // how much power has come back here: lit beacons within 70 m
+     let aw=0;for(let b=0;b<BN;b++){const B=BEAMS[b];const ex=hx-B.x,ez=hz-B.z;const d2=ex*ex+ez*ez;if(d2<4900){const v=(1-Math.sqrt(d2)/70)*B.aw;if(v>aw)aw=v}}
+     const hc=hash2(Math.floor(p.x*0.7),Math.floor(p.z*0.7));const lc=hc<0.55?[0.3,0.88,1]:hc<0.8?[0.72,0.45,1]:[0.35,1,0.78];
+     const fac=Math.max(0,-(dx*nx+dy*ny+dz*nz)),rim=(1-fac)*(1-fac);
+     if(p.mat===7){let strip=false,seam=0;
+      if(p.k===1){const hh=pu+p.hl;if(p.ax===1){const sv=hh/3-Math.floor(hh/3);if(sv<0.08&&hh>1.2&&hh<2*p.hl-0.4)strip=true;else{const su=pv*p.r/1.7;if(su-Math.floor(su)<0.07)seam=1}}else{const su=hh/2;if(su-Math.floor(su)<0.07)seam=2}}
+      else if(p.k===0){const fa=pu/2.2-Math.floor(pu/2.2);if(ny>0.5||ny<-0.5){const fb=pv/2.2-Math.floor(pv/2.2);if(fa<0.05||fb<0.05)seam=2}else{const fb=hy/3-Math.floor(hy/3);if(fb<0.07)strip=true;else if(fa<0.05)seam=1}}
+      else{const fb=(hy-p.y)/1.1;if(fb-Math.floor(fb)<0.1)seam=2}
+      emR+=0.05*rim;emG+=0.12*rim;emB+=0.16*rim;
+      if(strip){const ch=0.75+0.25*Math.sin(tnow*2.4-hy*0.7+p.x);const k=(0.55+1.4*aw)*ch;emR+=lc[0]*k;emG+=lc[1]*k;emB+=lc[2]*k;lineGlyph=G('=');lineDark=0.4}
+      else if(seam){lineGlyph=G(seam===1?'|':'-');if(aw>0){const k=aw*(0.7+0.3*Math.sin(tnow*1.6+hx*0.3+hz*0.2));emR+=lc[0]*k*0.8;emG+=lc[1]*k*0.8;emB+=lc[2]*k*0.8;lineDark=1}else lineDark=0.6}}
+     else{ // glass: dark tint, bright rim, lattice frame, lit rooms inside
+      ar=0.06;ag=0.16;ab=0.2;const pw=1+1.4*aw;
+      emR+=(0.04+0.4*rim)*pw;emG+=(0.14+0.75*rim)*pw;emB+=(0.18+0.85*rim)*pw;
+      let lat=false;if(p.k===2){const u=(pu+Math.PI)/TAU*18,v=(hy-p.y)/1.3;lat=u-Math.floor(u)<0.08||v-Math.floor(v)<0.09}else if(p.k===1){const u=(pu+p.hl)/1.4;lat=u-Math.floor(u)<0.12}
+      if(lat){ar=0.5;ag=0.62;ab=0.7;emR+=0.04*pw;emG+=0.14*pw;emB+=0.18*pw;lineGlyph=G('+');lineDark=1}
+      else if(p.k===2){const w=hash2(Math.floor(pu*4+p.x*3),Math.floor(hy*0.9+p.z));if(w>0.8){const k=(0.18+0.35*aw)*(0.85+0.15*Math.sin(tnow*0.7+w*20));emR+=k*1.0;emG+=k*0.78;emB+=k*0.5}}}}
     else if(p.mat===6){const at=p.at,pi=p.pi,e=p.em;const fac=-(dx*nx+dy*ny+dz*nz);const bel=clamp((-ny-0.05)/0.45,0,1);
-     if(at===0){ar=lerp(0.4,1,bel);ag=lerp(0.44,1,bel);ab=lerp(0.52,1,bel)}
+     if(at===0){ar=lerp(0.4,1,bel);ag=lerp(0.44,1,bel);ab=lerp(0.52,1,bel);if(pi>=4){ar*=0.78;ag*=0.8;ab*=0.85}}
      else if(at===1){if(pi===0&&ny>-0.2){const u=(hx-p.x)*2.1,v0=(hz-p.z)*2.1,fu=Math.floor(u),v=v0+(fu&1)*0.5,fv=Math.floor(v);const pl=hash2(fu+31,fv+57);
        ar=0.36+0.22*pl;ag=0.3+0.16*pl;ab=0.1+0.06*pl;if(u-fu<0.13||v-fv<0.13){ar*=0.35;ag*=0.35;ab*=0.35;lineGlyph=G('#');lineDark=1}}
       else{ar=0.6;ag=0.68;ab=0.42;if(pi===0){ar=0.82;ag=0.78;ab=0.52}}}
@@ -608,16 +666,18 @@ const SPRAY=[null,null,
  {n:3,len:1,sp:0.2,c:[[0.8,0.5,0.9],[0.95,0.8,0.3],[0.9,0.4,0.4]],e:0.4,g:'U',tr:0.2,fl:0.55},
  {n:6,len:1.2,sp:1.0,c:[[0.35,0.7,1],[0.5,0.5,1]],e:0.5,g:'v',tr:0.11,fl:0.7},
  {n:7,len:0.9,sp:0.9,c:[[0.3,1,0.9],[0.7,0.4,1],[0.3,0.8,1]],e:1.1,g:'*',tr:0.12,fl:0.85}];
+SPRAY[10]={n:12,len:1,sp:1.35,c:[[1,0.45,0.7],[0.5,1,0.6],[1,0.6,0.3],[0.75,0.5,1]],e:0.45,g:'o',tr:0.05,fl:0.8,wg:0.2};
+SPRAY[11]={n:6,len:1,sp:0.22,c:[[0.9,0.88,0.82]],tc:[1,0.2,0.28],e:0.55,g:'*',tr:0.11,fl:0.9};
 function drawSpray(fi){const t=FT[fi],sp=SPRAY[t],bx=FX[fi],by=FY[fi],bz=FZ[fi],h=FH[fi],ph=FP[fi];
  if(!proj(bx,by+h*0.4,bz))return;const dd=pjd;if(dd>(t===5?60:46))return;
  const col=sp.c[Math.floor(ph*3.7)%sp.c.length];const gg=G(sp.g);
  const pul=sp.e>0?1+0.25*Math.sin(T*1.5+ph*5):1;
- for(let b=0;b<sp.n;b++){const a=ph+b*TAU/sp.n;const lean=sp.sp*h*0.5;const sw=0.1*Math.sin(T*0.9+ph+b);
+ for(let b=0;b<sp.n;b++){const a=ph+b*TAU/sp.n;const lean=sp.sp*h*0.5;const sw=sp.wg?sp.wg*h*Math.sin(T*2+ph+b*1.3):0.1*Math.sin(T*0.9+ph+b);
   const mx=bx+Math.cos(a)*lean*0.5+sw,mz=bz+Math.sin(a)*lean*0.5,my=by+h*0.55;const tx=bx+Math.cos(a)*lean+sw*2,tz=bz+Math.sin(a)*lean,ty=by+h*(t===3?1:0.9);
   if(!proj(bx,by,bz))continue;const x0=pjx,y0=pjy,d0=pjd;if(!proj(mx,my,mz))continue;const x1=pjx,y1=pjy,d1=pjd;if(!proj(tx,ty,tz))continue;const x2=pjx,y2=pjy,d2=pjd;
   const dm=(d0+d2)*0.5;objShade(col[0]*pul,col[1]*pul,col[2]*pul,my,dm,sp.e);
   line(x0,y0,x1,y1,d0,d1,segGlyph(x1-x0,y1-y0),oR,oG,oB);line(x1,y1,x2,y2,d1,d2,segGlyph(x2-x1,y2-y1),oR,oG,oB);
-  objShade(Math.min(1.2,col[0]*1.4)*pul,Math.min(1.2,col[1]*1.4)*pul,Math.min(1.2,col[2]*1.4)*pul,ty,d2,sp.e);
+  const tc=sp.tc||col;objShade(Math.min(1.2,tc[0]*1.4)*pul,Math.min(1.2,tc[1]*1.4)*pul,Math.min(1.2,tc[2]*1.4)*pul,ty,d2,sp.e);
   // tip / cap: sized in world units so it grows with the stalk as you swim closer
   const tr=sp.tr*Math.max(1.2,h),kk=FOCAL/Math.max(0.3,pjz);const rx=Math.min(14,tr*kk/CW),ry=Math.min(10,tr*sp.fl*kk/CH);
   if(rx<1.25){plot(Math.floor(x2),Math.floor(y2),d2,gg,oR,oG,oB);if(dd<22&&t<4&&rx>0.6){plot(Math.floor(x2)-1,Math.floor(y2),d2,G("o"),oR*0.8,oG*0.8,oB*0.8);plot(Math.floor(x2)+1,Math.floor(y2),d2,G("o"),oR*0.8,oG*0.8,oB*0.8)}}
@@ -626,6 +686,58 @@ const GC1=G('@'),GC2=G('O'),GC3=G('o');
 function capBlob(px,py,d,rx,ry,gg){const i0=Math.floor(px-rx),i1=Math.ceil(px+rx),j0=Math.floor(py-ry),j1=Math.ceil(py+ry);const r0=oR,g0=oG,b0=oB;
  for(let j=j0;j<=j1;j++){const vy=(j+0.5-py)/ry;for(let i=i0;i<=i1;i++){const vx=(i+0.5-px)/rx;const n=vx*vx+vy*vy;if(n>1)continue;
   const sh=1.15-0.45*n-0.2*vy;const g=n>0.62?gg:n>0.3?GC3:vy<-0.2?GC1:GC2;plot(i,j,d+n*0.3,g,r0*sh,g0*sh,b0*sh)}}}
+function seg3(ax,ay,az,ex,ey,ez,r,g,b,e){if(!proj(ax,ay,az))return 0;const x0=pjx,y0=pjy,d0=pjd;if(!proj(ex,ey,ez))return 0;objShade(r,g,b,(ay+ey)*0.5,(d0+pjd)*0.5,e);line(x0,y0,pjx,pjy,d0,pjd,segGlyph(pjx-x0,pjy-y0),oR,oG,oB);return 1}
+// 6: sea-grass tuft
+const GRC=[[0.35,0.75,0.25],[0.5,0.82,0.2],[0.28,0.62,0.35],[0.62,0.75,0.25]],GGR=G('"');
+function drawGrass(fi){const bx=FX[fi],by=FY[fi],bz=FZ[fi],h=FH[fi],ph=FP[fi];const ddx=bx-cx,ddz=bz-cz;const dd=Math.sqrt(ddx*ddx+ddz*ddz);
+ const c=GRC[(ph*2.3|0)&3];
+ if(dd>22){if(!proj(bx,by+h*0.4,bz))return;objShade(c[0],c[1],c[2],by,pjd,0);plot(Math.floor(pjx),Math.floor(pjy),pjd,GGR,oR,oG,oB);return}
+ let px=0,pz=0;if(dd<4){const k=(1-dd/4)*1.2;px=ddx/(dd+0.01)*k;pz=ddz/(dd+0.01)*k}
+ const nb=dd<11?6:4;
+ for(let b=0;b<nb;b++){const a=ph*3+b*2.4;const r0=0.22*((b*0.37+ph)%1);const x0=bx+Math.cos(a)*r0,z0=bz+Math.sin(a)*r0;const hb=h*(0.55+0.45*((b*0.61+ph*1.7)%1));
+  const sw=(Math.sin(T*1.1+ph+b*0.7+bx*0.2)*0.25+curX*0.25)*hb+px*hb,sz=(Math.cos(T*0.9+ph*1.3+b)*0.15+curZ*0.25)*hb+pz*hb;
+  const ox=Math.cos(a)*0.22*hb,oz=Math.sin(a)*0.22*hb;const mx=x0+sw*0.3+ox*0.5,mz=z0+sz*0.3+oz*0.5,my=by+hb*0.55;
+  seg3(x0,by,z0,mx,my,mz,c[0]*0.75,c[1]*0.75,c[2]*0.75,0);seg3(mx,my,mz,x0+sw+ox,by+hb*(0.95-0.15*Math.abs(sw)/hb),z0+sz+oz,c[0],c[1],c[2],0)}}
+// 7: sea fan (gorgonian) - flat lattice in one plane
+const FANC=[[1,0.3,0.35],[0.95,0.55,0.2],[0.78,0.3,0.88],[1,0.8,0.3],[0.95,0.42,0.62]];
+function drawFan(fi){const bx=FX[fi],by=FY[fi],bz=FZ[fi],h=FH[fi],ph=FP[fi];if(!proj(bx,by+h*0.5,bz))return;const dd=pjd;if(dd>50)return;
+ const c=FANC[(ph*3.1|0)%5];const ux=Math.cos(ph),uz=Math.sin(ph),nx=-uz,nz=ux;const sw=(Math.sin(T*0.7+ph)*0.1+0.04*(curX*nx+curZ*nz))*h;
+ const nB=dd<22?8:5;const sy=by+h*0.28;
+ seg3(bx,by,bz,bx+nx*sw*0.3,sy,bz+nz*sw*0.3,c[0]*0.6,c[1]*0.6,c[2]*0.6,0.2);
+ let lmx=0,lmy=0,lmz=0,lex=0,ley=0,lez=0;
+ for(let b=0;b<nB;b++){const f=(b/(nB-1))*2-1;const sx=bx+nx*sw*0.3,sz2=bz+nz*sw*0.3;
+  const w=h*0.62,ex=bx+ux*f*w+nx*sw,ey=by+h*(0.62+0.38*Math.sqrt(1-f*f)),ez=bz+uz*f*w+nz*sw;
+  const mx=sx+(ex-sx)*0.5+ux*f*h*0.04,my=sy+(ey-sy)*0.5,mz=sz2+(ez-sz2)*0.5+uz*f*h*0.04;
+  seg3(sx,sy,sz2,mx,my,mz,c[0]*0.8,c[1]*0.8,c[2]*0.8,0.22);seg3(mx,my,mz,ex,ey,ez,c[0],c[1],c[2],0.28);
+  if(dd<22&&b>0){seg3(lmx,lmy,lmz,mx,my,mz,c[0]*0.75,c[1]*0.75,c[2]*0.75,0.2);seg3(lex,ley,lez,ex,ey,ez,c[0]*0.9,c[1]*0.9,c[2]*0.9,0.25)}
+  lmx=mx;lmy=my;lmz=mz;lex=ex;ley=ey;lez=ez}}
+// 8: brain / boulder coral dome
+const BRC=[[0.85,0.72,0.45],[0.58,0.78,0.45],[0.92,0.55,0.55],[0.55,0.62,0.85]],GBR=G('%'),GBW=G('~'),GBE=G('o');
+function drawBoulder(fi){const bx=FX[fi],by=FY[fi],bz=FZ[fi],h=FH[fi],ph=FP[fi];const r=h*0.55;if(!proj(bx,by+r*0.35,bz))return;const dd=pjd;if(dd>48)return;
+ const c=BRC[(ph*2.9|0)&3];objShade(c[0],c[1],c[2],by,dd,0.15);
+ const kk=FOCAL/Math.max(0.3,pjz);const rx=Math.min(22,r*kk/CW),ry=Math.min(14,r*0.72*kk/CH);
+ if(rx<1){plot(Math.floor(pjx),Math.floor(pjy),dd,GBE,oR,oG,oB);return}
+ const px=pjx,py=pjy,d=dd-r*0.5,r0=oR,g0=oG,b0=oB;
+ for(let j=Math.floor(py-ry);j<=Math.ceil(py);j++){const vy=(j+0.5-py)/Math.max(0.7,ry);for(let i=Math.floor(px-rx);i<=Math.ceil(px+rx);i++){const vx=(i+0.5-px)/rx;const n=vx*vx+vy*vy;if(n>1)continue;
+  const w=Math.sin(vx*7+Math.sin(vy*5+ph)*2.2)+0.7*Math.sin(vy*6-ph*2);const ridge=w>0.25;const sh=(1.15-0.4*n-0.3*vy)*(ridge?1:0.6);
+  plot(i,j,d+n*0.3,n>0.75?GBE:ridge?GBW:GBR,r0*sh,g0*sh,b0*sh)}}}
+// 9: tube sponge cluster
+const SPC=[[0.95,0.8,0.25],[0.72,0.35,0.88],[0.95,0.5,0.25],[0.4,0.7,0.88]];
+function drawSponge(fi){const bx=FX[fi],by=FY[fi],bz=FZ[fi],h=FH[fi],ph=FP[fi];if(!proj(bx,by+h*0.5,bz))return;const dd=pjd;if(dd>48)return;
+ const c=SPC[(ph*3.3|0)&3];
+ for(let b=0;b<3;b++){const a=ph+b*2.1;const o=b?0.2*h:0;const x0=bx+Math.cos(a)*o,z0=bz+Math.sin(a)*o;const hb=h*(b?0.5+0.2*b:1);const lean=0.12*hb;const tx=x0+Math.cos(a)*lean,tz=z0+Math.sin(a)*lean,ty=by+hb;
+  const rad=0.12*h;if(!proj(tx,ty,tz))continue;const kk=FOCAL/Math.max(0.3,pjz);const rx=rad*kk/CW;
+  if(rx<0.9){seg3(x0,by,z0,tx,ty,tz,c[0],c[1],c[2],0.2);continue}
+  const ns=Math.min(7,Math.ceil(rx*1.6)+1);for(let k=0;k<ns;k++){const f=(k/(ns-1))*2-1;const ox=rX*f*rad,oz=rZ*f*rad;const sh=1.05-0.4*Math.abs(f)-0.12*f;seg3(x0+ox,by,z0+oz,tx+ox,ty,tz+oz,c[0]*sh,c[1]*sh,c[2]*sh,0.2)}
+  if(proj(tx,ty,tz)){objShade(c[0]*0.35,c[1]*0.35,c[2]*0.35,ty,pjd,0.05);capBlob(pjx,pjy,pjd-0.05,rx,Math.max(0.6,rx*CW/CH*0.35),GC2)}}}
+// 12: staghorn coral - forked antlers
+const STC=[[0.88,0.76,0.55],[0.5,0.66,0.98],[0.82,0.5,0.88],[0.98,0.62,0.42]];
+function drawStag(fi){const bx=FX[fi],by=FY[fi],bz=FZ[fi],h=FH[fi],ph=FP[fi];if(!proj(bx,by+h*0.5,bz))return;const dd=pjd;if(dd>46)return;
+ const c=STC[(ph*2.7|0)&3];const nb=dd<20?5:3;
+ for(let b=0;b<nb;b++){const a=ph+b*TAU/nb+0.3*Math.sin(b*3.1+ph);const l1=h*(0.5+0.25*((b*0.43+ph)%1));
+  const x1=bx+Math.cos(a)*l1*0.45,y1=by+l1*0.9,z1=bz+Math.sin(a)*l1*0.45;seg3(bx,by,bz,x1,y1,z1,c[0]*0.8,c[1]*0.8,c[2]*0.8,0.2);
+  for(let k=-1;k<=1;k+=2){const a2=a+k*0.65;const l2=l1*0.6;const x2=x1+Math.cos(a2)*l2*0.5,y2=y1+l2*0.85,z2=z1+Math.sin(a2)*l2*0.5;seg3(x1,y1,z1,x2,y2,z2,c[0],c[1],c[2],0.25);
+   if(dd<14&&proj(x2,y2,z2)){objShade(Math.min(1.2,c[0]*1.3),Math.min(1.2,c[1]*1.3),Math.min(1.2,c[2]*1.3),y2,pjd,0.4);plot(Math.floor(pjx),Math.floor(pjy),pjd,GC3,oR,oG,oB)}}}}
 function edgePass(){
  const far=maxD*1.4;const Z=zbuf;
  for(let j=0;j<ROWS;j++){for(let i=0;i<COLS;i++){const k=j*COLS+i;let d=Z[k];if(d>far)d=far;
@@ -644,7 +756,7 @@ function floraPass(){
   const sx=Math.abs(vx*rX+vz*rZ);if(sx>fz2*1.5+FB*1.5+4)continue;
   for(let q=0;q<lst.length;q++){const fi=lst[q];const dx=FX[fi]-cx,dz=FZ[fi]-cz;const d=Math.sqrt(dx*dx+dz*dz);if(d>R)continue;
    const keep=1.15-d/(R*0.75);if(keep<1&&hash2(fi,7)>keep)continue;
-   if(FT[fi]===0||FT[fi]===1)drawKelp(fi);else drawSpray(fi);drawn++;if(drawn>2600)return}}
+   const ft=FT[fi];if(ft<2)drawKelp(fi);else if(ft===6)drawGrass(fi);else if(ft===7)drawFan(fi);else if(ft===8)drawBoulder(fi);else if(ft===9)drawSponge(fi);else if(ft===12)drawStag(fi);else drawSpray(fi);drawn++;if(drawn>5200)return}}
 }
 /* fish */
 function updateFish(dt){
@@ -777,14 +889,34 @@ function animalUpdate(dt){
   a.x+=a.vx*dt;a.y+=a.vy*dt;a.z+=a.vz*dt;a.x=clamp(a.x,-240,240);a.z=clamp(a.z,-15,630);const g=H(a.x,a.z)+1.4;if(a.y<g)a.y=g;if(a.y>-1.3)a.y=-1.3;
   const sp=Math.hypot(a.vx,a.vy,a.vz);a.sp=sp;if(sp>0.05){const k=Math.min(1,dt*3.5);a.dx+=(a.vx/sp-a.dx)*k;a.dy+=(clamp(a.vy/sp,-0.5,0.5)-a.dy)*k;a.dz+=(a.vz/sp-a.dz)*k;const l=Math.hypot(a.dx,a.dy,a.dz)||1;a.dx/=l;a.dy/=l;a.dz/=l}
   poseAnimal(a)}}
-function setE(p,x,y,z,a,b,c){p.x=x;p.y=y;p.z=z;p.a=a;p.b=b;p.c=c;p.br=Math.max(a,b,c)}
+function setE(p,x,y,z,a,b,c){p.x=x;p.y=y;p.z=z;p.a=a;p.b=b;p.c=c;p.br=Math.max(a,b,c);p.R=null}
+// oriented ellipsoid: half-length a along A, b along B (made orthogonal to A), c along A x B
+function setO(p,x,y,z,a,b,c,ax,ay,az,bx,by,bz){let l=1/(Math.hypot(ax,ay,az)||1);ax*=l;ay*=l;az*=l;const k=bx*ax+by*ay+bz*az;bx-=ax*k;by-=ay*k;bz-=az*k;l=1/(Math.hypot(bx,by,bz)||1);bx*=l;by*=l;bz*=l;
+ const R=p.R||(p.R=new Float64Array(9));R[0]=ax;R[1]=ay;R[2]=az;R[3]=bx;R[4]=by;R[5]=bz;R[6]=ay*bz-az*by;R[7]=az*bx-ax*bz;R[8]=ax*by-ay*bx;p.x=x;p.y=y;p.z=z;p.a=a;p.b=b;p.c=c;p.br=Math.max(a,b,c)}
 const DPROF=[[0.5,0.15],[0.34,0.33],[0.14,0.45],[-0.08,0.43],[-0.3,0.31],[-0.48,0.19]];
 function poseAnimal(a){const dx=a.dx,dy=a.dy,dz=a.dz;let lx=-dz,lz=dx;const ll=Math.hypot(lx,lz)||1;lx/=ll;lz/=ll;const adx=Math.abs(dx),adz=Math.abs(dz),alx=Math.abs(lx),alz=Math.abs(lz);
  const deep=smooth(30,90,envDep);const pp=a.parts;
- if(a.type===0){const L=2.9,fq=5+a.sp*0.9;
-  for(let k=0;k<6;k++){const o=DPROF[k][0]*L,r=DPROF[k][1];const uw=Math.sin(T*fq+a.ph-k*0.9)*0.13*(k/5);setE(pp[k],a.x+dx*o,a.y+dy*o+uw,a.z+dz*o,r,r*0.9,r)}
-  setE(pp[6],a.x+dx*0.1,a.y+0.5,a.z+dz*0.1,adx*0.3+adz*0.06+0.03,0.32,adz*0.3+adx*0.06+0.03);
-  const tw=Math.sin(T*fq+a.ph-5.4)*0.26;setE(pp[7],a.x-dx*1.78,a.y-dy*1.78+tw,a.z-dz*1.78,alx*0.62+adx*0.13,0.07,alz*0.62+adz*0.13);
+ if(a.type===0){const fq=5+a.sp*0.9,ph=T*fq+a.ph;
+  let fx=dx,fy=dy,fz=dz;let l=Math.hypot(fx,fy,fz)||1;fx/=l;fy/=l;fz/=l;const sx=lx,sz=lz;
+  let ux=-sz*fy,uy=sz*fx-sx*fz,uz=sx*fy;l=Math.hypot(ux,uy,uz)||1;ux/=l;uy/=l;uz/=l;
+  const bob=Math.sin(ph)*0.05,X=a.x+ux*bob,Y=a.y+uy*bob,Z=a.z+uz*bob;
+  const at=(o,h,sd)=>[X+fx*o+ux*h+sx*sd,Y+fy*o+uy*h,Z+fz*o+uz*h+sz*sd];
+  let q=at(0.05,0,0);setO(pp[0],q[0],q[1],q[2],1.0,0.37,0.4,fx,fy,fz,ux,uy,uz);           // body
+  q=at(0.84,0.05,0);setO(pp[1],q[0],q[1],q[2],0.44,0.3,0.31,fx,fy,fz,ux,uy,uz);           // melon
+  q=at(1.33,-0.07,0);setO(pp[2],q[0],q[1],q[2],0.3,0.085,0.1,fx,fy,fz,ux,uy,uz);          // beak
+  // tail stock + flukes beat up and down
+  const th=Math.sin(ph-1.2)*0.34,c1=Math.cos(th*0.5),s1=Math.sin(th*0.5);
+  const pdx=fx*c1+ux*s1,pdy=fy*c1+uy*s1,pdz=fz*c1+uz*s1;const st=at(-0.72,0.02,0);
+  setO(pp[3],st[0]-pdx*0.6,st[1]-pdy*0.6,st[2]-pdz*0.6,0.74,0.24,0.16,pdx,pdy,pdz,ux,uy,uz);
+  const ex=st[0]-pdx*1.25,ey=st[1]-pdy*1.25,ez=st[2]-pdz*1.25;
+  const c2=Math.cos(th*1.3),s2=Math.sin(th*1.3);const gdx=fx*c2+ux*s2,gdy=fy*c2+uy*s2,gdz=fz*c2+uz*s2,vx=ux*c2-fx*s2,vy=uy*c2-fy*s2,vz=uz*c2-fz*s2;
+  for(let k=0;k<2;k++){const sg=k?1:-1;const Ax=sx*sg-gdx*0.55,Ay=-gdy*0.55,Az=sz*sg-gdz*0.55;const al=Math.hypot(Ax,Ay,Az);
+   setO(pp[7+k],ex+Ax/al*0.3,ey+Ay/al*0.3,ez+Az/al*0.3,0.4,0.035,0.16,Ax,Ay,Az,vx,vy,vz)}
+  // dorsal fin, swept back
+  {const Ax=-0.62*fx+0.78*ux,Ay=-0.62*fy+0.78*uy,Az=-0.62*fz+0.78*uz;q=at(-0.12,0.3,0);setO(pp[4],q[0]+Ax*0.2,q[1]+Ay*0.2,q[2]+Az*0.2,0.36,0.045,0.18,Ax,Ay,Az,sx,0,sz)}
+  // pectoral flippers
+  for(let k=0;k<2;k++){const sg=k?1:-1;const fl=Math.sin(ph*0.5+k)*0.08;const Ax=sx*sg*0.8-fx*0.45-ux*(0.35+fl),Ay=-fy*0.45-uy*(0.35+fl),Az=sz*sg*0.8-fz*0.45-uz*(0.35+fl);const al=Math.hypot(Ax,Ay,Az);
+   q=at(0.5,-0.2,sg*0.3);setO(pp[5+k],q[0]+Ax/al*0.22,q[1]+Ay/al*0.22,q[2]+Az/al*0.22,0.3,0.04,0.13,Ax,Ay,Az,ux,uy,uz)}
   const gl=(a.guide&&(a.st==='guide'||a.st==='wait'||a.st==='show'))?0.55+0.3*Math.sin(T*3.2):0;const e=0.1+0.4*deep+gl;for(const p of pp)p.em=e}
  else if(a.type===1){const fl=Math.sin(T*1.7+a.ph);
   setE(pp[0],a.x,a.y,a.z,0.95,0.4,0.95);setE(pp[1],a.x+dx*1.2,a.y+dy*1.2+0.05,a.z+dz*1.2,0.3,0.27,0.3);
@@ -800,7 +932,7 @@ function poseAnimal(a){const dx=a.dx,dy=a.dy,dz=a.dz;let lx=-dz,lz=dx;const ll=M
   const tw=Math.sin(T*fq+a.ph-4.4)*0.35;setE(pp[6],a.x-dx*1.75+lx*tw,a.y+0.18,a.z-dz*1.75+lz*tw,adx*0.2+0.04,0.42,adz*0.2+0.04);
   for(let s=0;s<2;s++){const sg=s?1:-1;setE(pp[7+s],a.x+dx*0.35+lx*sg*0.72,a.y-0.28,a.z+dz*0.35+lz*sg*0.72,alx*0.6+adx*0.18+0.03,0.05,alz*0.6+adz*0.18+0.03)}
   for(const p of pp)p.em=0.05+0.3*deep}
- const K=a.type===0?1.25:a.type===1?1.35:a.type===2?1.1:1.2;
+ const K=a.type===0?1.15:a.type===1?1.35:a.type===2?1.1:1.2;
  for(const p of pp){p.x=a.x+(p.x-a.x)*K;p.y=a.y+(p.y-a.y)*K;p.z=a.z+(p.z-a.z)*K;p.a*=K;p.b*=K;p.c*=K;p.br*=K}}
 const SPROF=[[0.5,0.13],[0.3,0.3],[0.07,0.37],[-0.17,0.29],[-0.38,0.16]];
 function animalPass(){for(const a of AN){if(a.type!==2)continue;const d2=(a.x-cx)**2+(a.z-cz)**2;if(d2>maxD*maxD)continue;let lx=0,ly=0,ld=0,ok=false;
