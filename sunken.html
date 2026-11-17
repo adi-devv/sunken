@@ -518,15 +518,20 @@ const JN=82;const jx0=[],jy0=[],jz0=[],jph=[],jr=[],jc=[],jX=[],jY=[],jZ=[];
 const PART=760;const ppx=new Float32Array(PART),ppy=new Float32Array(PART),ppz=new Float32Array(PART),ppg=new Uint8Array(PART);
 for(let i=0;i<PART;i++){ppx[i]=(Math.random()-0.5)*48;ppy[i]=(Math.random()-0.5)*26;ppz[i]=(Math.random()-0.5)*48;ppg[i]=Math.random()<0.3?1:0}
 const whale={x:0,y:-25,z:200,dx:1,dz:0,sp:6,len:50,active:false,calledAt:0,big:true,age:0,phase:0,tgt:-1,tgtT:0,hx:0,hy:0,hz:0};
+const WHALE_SURFACE_Y=-9;
+// In shallow water clearance yields to submersion; only a breach may lift the whale above this depth.
+function whaleFloor(x,z,gap=8){return Math.min(WHALE_SURFACE_Y,H(x,z)+gap)}
+function whaleDepth(y,x,z,gap=8){return clamp(y,whaleFloor(x,z,gap),WHALE_SURFACE_Y)}
 function pickPrey(){let best=-1,bs=-1e9;const fx0=Math.sin(P.yaw),fz0=Math.cos(P.yaw);
  for(let k=0;k<SCH.length;k++){const q=SCH[k];if(q.alive<q.n*0.5||q.gd)continue;const ex=q.cx-P.x,ez=q.cz-P.z,d=Math.hypot(ex,ez);if(d<20||d>110||q.cy>-3||H(q.cx,q.cz)>-17)continue;const sc=(ex*fx0+ez*fz0)/d*40-d*0.3+(q.roam!==undefined?25:0)+Math.random()*15;if(sc>bs){bs=sc;best=k}}return best}
-function respawnWhale(){whale.tgt=-1;
+function respawnWhale(){whale.tgt=-1;whale.active=false;whale.age=0;
  if(P.y<-2&&S.mode==='play'&&Math.random()<0.6){const k=pickPrey();if(k>=0){const q=SCH[k];const a=Math.atan2(q.cz-P.z,q.cx-P.x)+(Math.random()-0.5)*1.2;
-  whale.x=q.cx+Math.cos(a)*170;whale.z=q.cz+Math.sin(a)*170;let dx=q.cx-whale.x,dz=q.cz-whale.z;const l=Math.hypot(dx,dz);whale.dx=dx/l;whale.dz=dz/l;whale.sp=6;
-  whale.y=clamp(q.cy,H(whale.x,whale.z)+9,-9);whale.tgt=k;whale.tgtT=T;whale.age=0;whale.active=true;whale.phase=Math.random()*TAU;whale.called=false;return}}
- const a=Math.random()*TAU,d=210;whale.big=true;whale.len=50;whale.x=P.x+Math.cos(a)*d;whale.z=P.z+Math.sin(a)*d;
+  whale.x=q.cx+Math.cos(a)*170;whale.z=q.cz+Math.sin(a)*170;if(H(whale.x,whale.z)<-26){let dx=q.cx-whale.x,dz=q.cz-whale.z;const l=Math.hypot(dx,dz);whale.dx=dx/l;whale.dz=dz/l;whale.sp=6;
+  whale.y=whaleDepth(q.cy,whale.x,whale.z,9);whale.tgt=k;whale.tgtT=T;whale.age=0;whale.active=true;whale.phase=Math.random()*TAU;whale.called=false;return}}}
+ let ok=false;for(let k=0;k<24&&!ok;k++){const a=Math.random()*TAU,d=210;whale.x=P.x+Math.cos(a)*d;whale.z=P.z+Math.sin(a)*d;ok=H(whale.x,whale.z)<-26}
+ if(!ok)return;whale.big=true;whale.len=50;
  const tx=P.x+(Math.random()-0.5)*110,tz=P.z+(Math.random()-0.5)*110;let dx=tx-whale.x,dz=tz-whale.z;const l=Math.hypot(dx,dz);whale.dx=dx/l;whale.dz=dz/l;whale.sp=4.5;
- whale.y=Math.min(-10,P.y+(Math.random()*16-8));whale.age=0;whale.active=true;whale.phase=Math.random()*TAU;whale.called=false}
+ whale.y=whaleDepth(Math.min(-10,P.y+(Math.random()*16-8)),whale.x,whale.z);whale.age=0;whale.active=true;whale.phase=Math.random()*TAU;whale.called=false}
 
 /* ================= AUDIO ================= */
 let AC=null,mGain,lpf,sfx,droneG,noiseG,revIn;
@@ -1272,7 +1277,7 @@ function breachStep(dt){const u=T-whale.br;const dp=Math.hypot(whale.x-P.x,whale
  else{whale.vy*=Math.exp(-dt*2.2);whale.sp+=(6-whale.sp)*Math.min(1,dt*0.5);if(Math.abs(whale.vy)<0.7)whale.br=0}
  whale.y+=whale.vy*dt;whale.x+=whale.dx*whale.sp*dt;whale.z+=whale.dz*whale.sp*dt;
  const tp=clamp(Math.atan2(whale.vy,Math.max(4,whale.sp))*1.1,-1.15,1.2);whale.pitch=(whale.pitch||0)+(tp-(whale.pitch||0))*Math.min(1,dt*2.5);
- const h=H(whale.x,whale.z);if(whale.y<h+8){whale.y=h+8;if(whale.vy<0)whale.vy=0}
+ const floor=whaleFloor(whale.x,whale.z);if(whale.y<floor){whale.y=floor;if(whale.vy<0)whale.vy=0}
  whale.hx=whale.x+whale.dx*whale.len*0.5;whale.hy=whale.y;whale.hz=whale.z+whale.dz*whale.len*0.5}
 function rideStep(dt){whaleNear=false;if(S.mode!=='play')return;if(!whale.active){ride=null;return}
  const F=whaleFrame(),L=whale.len,sc=L/26;
@@ -1310,7 +1315,7 @@ function updateWhale(dt){
  if(ride)whale.tgt=-1;
  if(whale.tgt>=0){const q=SCH[whale.tgt];const hx=whale.x+whale.dx*whale.len*0.5,hz=whale.z+whale.dz*whale.len*0.5;
   let ex=q.cx-hx,ez=q.cz-hz;const d=Math.hypot(ex,ez)||1;ex/=d;ez/=d;const tr=Math.min(1,dt*0.6);let nx=whale.dx+(ex-whale.dx)*tr,nz=whale.dz+(ez-whale.dz)*tr;const l=Math.hypot(nx,nz)||1;whale.dx=nx/l;whale.dz=nz/l;
-  whale.sp+=((d<45?11:6.5)-whale.sp)*Math.min(1,dt*0.8);whale.y+=(clamp(q.cy,H(whale.x,whale.z)+9,-9)-whale.y)*Math.min(1,dt*0.7);
+  whale.sp+=((d<45?11:6.5)-whale.sp)*Math.min(1,dt*0.8);whale.y+=(whaleDepth(q.cy,whale.x,whale.z,9)-whale.y)*Math.min(1,dt*0.7);
   const dy=q.cy-whale.y;if(d<6&&Math.abs(dy)<9)whaleEat(whale.tgt);else if(T-whale.tgtT>70||q.alive<q.n*0.3)whale.tgt=-1}
  else whale.sp+=(4.5-whale.sp)*Math.min(1,dt*0.3);
  {const look=whale.len*0.9,lx=-whale.dz,lz=whale.dx;const hA=H(whale.x+whale.dx*look,whale.z+whale.dz*look),hH=H(whale.x+whale.dx*whale.len*0.5,whale.z+whale.dz*whale.len*0.5);
@@ -1321,12 +1326,13 @@ function updateWhale(dt){
    for(const p of L){const d=Math.min(sdPrim(p,px,whale.y,pz),sdPrim(p,px,whale.y+4,pz));if(d>=10)continue;const sl=sdPrim(p,px+lx*2,whale.y,pz+lz*2)-sdPrim(p,px-lx*2,whale.y,pz-lz*2);turn+=(sl>=0?1:-1)*(10-d)/10;if(q===0&&d<5)slow=1}}
   if(turn){const tr=clamp(turn,-1,1)*Math.min(1,dt*1.5);const nx=whale.dx+lx*tr,nz=whale.dz+lz*tr,l=Math.hypot(nx,nz)||1;whale.dx=nx/l;whale.dz=nz/l;if(slow){whale.sp=Math.max(2,whale.sp-dt*3);whale.tgt=-1}}}}
  if(whale.pitch)whale.pitch*=Math.exp(-dt*2);
- if(ride){whale.sp+=(8-whale.sp)*Math.min(1,dt*0.5);whale.y+=(Math.max(-14,H(whale.x,whale.z)+9)-whale.y)*Math.min(1,dt*0.4);
+ if(ride){whale.sp+=(8-whale.sp)*Math.min(1,dt*0.5);whale.y+=(Math.min(-10,whaleDepth(-14,whale.x,whale.z,9))-whale.y)*Math.min(1,dt*0.4);
   const zc=clamp(whale.z+whale.dz*40,60,560),tx=xc(zc),off=Math.abs(whale.x-xc(whale.z));if(off>85||whale.z<40||whale.z>580){let ex=tx-whale.x,ez=zc-whale.z;const l=Math.hypot(ex,ez)||1;const tr=Math.min(1,dt*0.7);let nx=whale.dx+(ex/l-whale.dx)*tr,nz=whale.dz+(ez/l-whale.dz)*tr;const ll=Math.hypot(nx,nz)||1;whale.dx=nx/ll;whale.dz=nz/ll}}
  else if(whale.tgt<0&&S.mode==='play'&&T-(whale.lastBr||-99)>45&&H(whale.x,whale.z)<-30&&Math.hypot(whale.x-P.x,whale.z-P.z)<150&&Math.random()<dt*0.05)startBreach();
  whale.x+=whale.dx*whale.sp*dt;whale.z+=whale.dz*whale.sp*dt;whale.y+=Math.sin(T*0.2+whale.phase)*dt*0.4;
+ const floor=whaleFloor(whale.x,whale.z);if(whale.y<floor)whale.y+=(floor-whale.y)*Math.min(1,dt*0.5);
+ whale.y=Math.min(WHALE_SURFACE_Y,whale.y);
  whale.hx=whale.x+whale.dx*whale.len*0.5;whale.hy=whale.y;whale.hz=whale.z+whale.dz*whale.len*0.5;
- const h=H(whale.x,whale.z);if(whale.y<h+8)whale.y+=(h+8-whale.y)*dt*0.5;
  const dp=Math.hypot(whale.x-P.x,whale.z-P.z);if(!whale.called&&dp<190&&S.mode==='play'){whale.called=true;setTimeout(()=>whaleCall(clamp(1.1-dp/260,0.3,1)),1200+Math.random()*2500)}
  if(dp>300&&whale.age>10&&whale.tgt<0&&!ride&&!whale.br)whale.active=false;
  poseWhale();
