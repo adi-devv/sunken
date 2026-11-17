@@ -22,7 +22,7 @@ Then open http://localhost:8000/sunken.html and click to dive.
 
 | Key | Action |
 |---|---|
-| WASD + mouse | swim and look (click to lock the mouse at the centre) |
+| WASD + mouse | swim and look (the mouse locks at the centre when you dive, or on any key press) |
 | E / Q | rise / sink (Space and C also work) |
 | Shift | swim fast |
 | F or right-click | whistle for the dolphins and other animals |
