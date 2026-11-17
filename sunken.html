@@ -43,10 +43,10 @@ const ISL={x:-42,z:62,r:30};
  for(let n=0;n<190;n++){const z=60+r()*470,x=xc(z)+(r()-0.5)*150;if(Math.hypot((x-TEMPLE.x)*0.7,z-TEMPLE.z)<70)continue;
   const rad=3+r()*7,ht=1.5+r()*5.5;const x0=Math.max(0,((x-rad*2.2-GX0)/2)|0),x1=Math.min(NX-1,((x+rad*2.2-GX0)/2)|0),z0=Math.max(0,((z-rad*2.2-GZ0)/2)|0),z1=Math.min(NZ-1,((z+rad*2.2-GZ0)/2)|0);
   for(let iz=z0;iz<=z1;iz++)for(let ix=x0;ix<=x1;ix++){const px=GX0+ix*2-x,pz=GZ0+iz*2-z;const q=(px*px+pz*pz)/(rad*rad);HF[iz*NX+ix]+=ht*Math.exp(-q*1.4)*(0.85+0.3*vnoise(px*0.4+n,pz*0.4))}}
- // the island: a beach ring around a grassy hill, rising out of the shallows
+ // the island: a low sandy beach island with a little grass in the middle
  for(let iz=0;iz<NZ;iz++)for(let ix=0;ix<NX;ix++){const x=GX0+ix*2,z=GZ0+iz*2;const ex=x-ISL.x,ez=z-ISL.z;const d=Math.hypot(ex*0.85,ez);if(d>ISL.r*1.4)continue;
   const an=Math.atan2(ez,ex);const rr=d/(ISL.r*(0.85+0.3*vnoise(Math.cos(an)*1.6+4,Math.sin(an)*1.6+9)));const sI=1-smooth(0.18,1.12,rr);if(sI<=0)continue;
-  const hi=-13+14*smooth(0,0.55,sI)+(4.5+2.5*fbm(x*0.05,z*0.05,3))*smooth(0.68,1,sI);const o=iz*NX+ix;if(hi>HF[o])HF[o]=hi}
+  const hi=-13+14.2*smooth(0,0.55,sI)+(0.9+0.7*fbm(x*0.05,z*0.05,3))*smooth(0.7,1,sI);const o=iz*NX+ix;if(hi>HF[o])HF[o]=hi}
 })();
 let HMAX=-1e9;for(let i=0;i<HF.length;i++)if(HF[i]>HMAX)HMAX=HF[i];
 function H(x,z){let gx=(x-GX0)*0.5,gz=(z-GZ0)*0.5;if(gx<0)gx=0;else if(gx>NX-1.001)gx=NX-1.001;if(gz<0)gz=0;else if(gz>NZ-1.001)gz=NZ-1.001;
@@ -168,16 +168,16 @@ function buildRuins(){
  const LC=()=>LCOL[r()*3|0];
  function building(x,z,kind,hmax){const g=H(x,z);
   if(kind===0){ // tower: hull shaft with light rings, a deck, a glass crown and an antenna
-   const rr=1.3+r()*0.9,h=hmax*(1.3+r()*1.3),y0=g-1.5,hl=(h+1.5)/2;cyl(x,y0+hl,z,1,rr,hl,7,HULL);
+   const rr=1.3+r()*0.9,y0=g-1.5;let h=hmax*(1.3+r()*1.3);const sh=1.5+r()*3;h=Math.max(2,Math.min(h,-1.2-(y0+1.5+rr*0.8+sh+0.55)));const hl=(h+1.5)/2;cyl(x,y0+hl,z,1,rr,hl,7,HULL);
    cyl(x,y0+1.5+h*0.55,z,1,rr*1.4,0.3,7,HULL);
    const top=y0+h+1.5;sph(x,top,z,rr*1.08,rr*0.95,rr*1.08,8,GLASS);
-   const sh=1.5+r()*3;cyl(x,top+rr*0.8+sh/2,z,1,0.12,sh/2,7,HULL);sph(x,top+rr*0.8+sh+0.25,z,0.3,0.3,0.3,3,LC());return}
+   const lc=LC();if(top+rr*0.8+sh+0.55<-1.2){cyl(x,top+rr*0.8+sh/2,z,1,0.12,sh/2,7,HULL);sph(x,top+rr*0.8+sh+0.25,z,0.3,0.3,0.3,3,lc)}return}
   if(kind===1){ // glass dome habitat on a hull ring
    const rr=3+r()*2;cyl(x,g+0.2,z,1,rr+0.45,0.75,7,HULL);sph(x,g+0.95,z,rr,rr*0.72,rr,8,GLASS);return}
   // stepped block tower
   const w=1.6+r()*1.2,d=1.6+r()*1.2;let y=g-1;const n=2+(r()*2|0);
-  for(let k=0;k<n;k++){const hh=1.5+r()*1.4,sc=1-k*0.2;box(x,y+hh,z,w*sc,hh,d*sc,7,HULL);y+=hh*2}
-  cyl(x,y+0.9,z,1,0.1,0.9,7,HULL);sph(x,y+2,z,0.26,0.26,0.26,3,LC())}
+  for(let k=0;k<n;k++){const hh=1.5+r()*1.4,sc=1-k*0.2;if(y+hh*2>-1.5&&k>0)continue;box(x,y+hh,z,w*sc,hh,d*sc,7,HULL);y+=hh*2}
+  const lc=LC();if(y+2.3<-1.2){cyl(x,y+0.9,z,1,0.1,0.9,7,HULL);sph(x,y+2,z,0.26,0.26,0.26,3,lc)}}
  function cluster(z,off,n,rad,hmax){const[x0,z0]=pos(z,off);building(x0,z0,1,hmax);
   const D=[[1,0],[-1,0],[0,1],[0,-1]],s0=r()*4|0,ns=Math.min(4,n-2);
   for(let k=0;k<ns;k++){const dd=D[(s0+k)%4],d=rad*(0.85+r()*0.4);const xs=x0+dd[0]*d,zs=z0+dd[1]*d;building(xs,zs,r()<0.55?0:2,hmax);
@@ -238,15 +238,14 @@ function buildRuins(){
   braz(tx-6,F+0.4,tz-20,[1,0.8,0.4]);braz(tx+6,F+0.4,tz-20,[1,0.8,0.4]);braz(tx-6,F+0.4,tz+10,[0.4,0.9,1]);braz(tx+6,F+0.4,tz+10,[0.7,0.45,1]);
  }
  // bioluminescent lichen / big mushroom domes? skip
- // the island's rock shelf: walk out onto it, or swim underneath
- {const RK=[0.72,0.69,0.62],sx=ISL.x+21,sz=ISL.z-17;
-  sph(sx,-0.4,sz,9,1.7,6.5,0,RK);sph(sx-5,0.1,sz+3.5,6,1.6,5,0,RK);sph(sx+5.5,-0.7,sz-2.5,5,1.3,4,0,RK);
-  for(const q of[[sx+6.5,sz+2.5],[sx-1,sz-4.5]]){const g=H(q[0],q[1]);sph(q[0],(g-1.2)/2,q[1],1.5,(-1.2-g)/2+0.6,1.7,0,RK)}
-  const r2=rng(55);for(let k=0;k<9;k++){const a=r2()*TAU,d=ISL.r*(0.55+r2()*0.25);const x=ISL.x+Math.cos(a)*d,z=ISL.z+Math.sin(a)*d;const g=H(x,z),s=0.6+r2()*1.0;sph(x,g+s*0.2,z,s*1.2,s*0.8,s,0,RK)}}
+ // a sand-coloured ledge off the east beach: walk out onto it, or swim underneath
+ {const SD=[0.88,0.81,0.64],sx=ISL.x+21,sz=ISL.z-17;
+  sph(sx,0.05,sz,8,0.55,5.5,0,SD);
+  for(const q of[[sx+4.5,sz+1.5],[sx-1,sz-3]]){const g=H(q[0],q[1]);sph(q[0],(g-0.4)/2,q[1],0.9,(-0.4-g)/2+0.4,0.9,0,SD)}}
  // palms
  {const TR=[0.64,0.52,0.36],FR=[0.32,0.58,0.2],r3=rng(31);
   for(const q of[[-6,4],[4,-5],[-2,-9],[9,3],[-10,-3],[2,9]]){const x0=ISL.x+q[0],z0=ISL.z+q[1];const g=H(x0,z0);const lx=r3()-0.5,lz=r3()-0.5,ll=Math.hypot(lx,lz)||1;const bx=lx/ll,bz=lz/ll;
-   const ht=5.5+r3()*2.5,lean=1.2+r3()*1.6;let px=x0,py=g-0.3,pz=z0;const N=4;
+   const ht=4.6+r3()*2,lean=1.2+r3()*1.6;let px=x0,py=g-0.3,pz=z0;const N=4;
    for(let k=0;k<N;k++){const t1=(k+1)/N;const nx=x0+bx*lean*t1*t1,ny=g-0.3+ht*t1,nz=z0+bz*lean*t1*t1;const p=sph((px+nx)/2,(py+ny)/2,(pz+nz)/2,1,1,1,9,TR);
     setO(p,(px+nx)/2,(py+ny)/2,(pz+nz)/2,Math.hypot(nx-px,ny-py,nz-pz)/2+0.08,0.3-k*0.03,0.3-k*0.03,nx-px,ny-py,nz-pz,1,0,0);p.nc=true;px=nx;py=ny;pz=nz}
    const nf=7,a0=r3()*TAU;for(let k=0;k<nf;k++){const a=a0+k*TAU/nf+(r3()-0.5)*0.4;const ox=Math.cos(a),oz=Math.sin(a),dr=-0.25-r3()*0.35;
@@ -534,14 +533,14 @@ function worldPass(){
    const tex=0.82+0.36*n2;
    let alr=lerp(br,rr,rk)*tex*ripple,alg=lerp(bg,rg,rk)*tex*ripple,alb=lerp(bb,rb,rk)*tex*ripple;
    let grass=0;if(hy>-0.6){if(hy<0.5){const wt=0.72+0.28*smooth(-0.6,0.5,hy);alr*=wt;alg*=wt;alb*=wt}
-    grass=smooth(1.9,3.0,hy+(n1-0.5)*1.4)*(1-rk*0.8);if(grass>0){const gv=0.75+0.5*n2;alr=lerp(alr,0.3*gv,grass);alg=lerp(alg,0.56*gv,grass);alb=lerp(alb,0.17*gv,grass)}}
+    grass=smooth(1.75,2.25,hy+(n1-0.5)*0.7)*(1-rk*0.8);if(grass>0){const gv=0.75+0.5*n2;alr=lerp(alr,0.3*gv,grass);alg=lerp(alg,0.56*gv,grass);alb=lerp(alb,0.17*gv,grass)}}
    let ndl=nx*sdx+ny*sdy+nz*sdz;ndl=ndl<0?0:ndl;ndl=0.25+0.75*ndl;
    let cau=0;if(dep>0&&dep<70){cau=caustic(hx,hz,tnow)*Math.exp(-dep*0.028)*causticK*smooth(0,1.2,dep)}
    const sunm=ndl*(0.55+1.5*cau)*ao;
    const hemi=(0.5+0.5*ny)*ao;
    const lamp=lampI*(-(dx*nx+dy*ny+dz*nz));const la=(lamp>0?lamp:0)/(1+tEnd*tEnd*LAMPF)*(0.35+0.65*smooth(0.55,0.9,dx*fX+dy*fY+dz*fZ));
    addLights(hx,hy,hz,nx,ny,nz);
-   const sa=hy>0?smooth(0,0.6,hy)*0.42*hemi:0;const lr=SUNR[l]*sunm+AMBR[l]*hemi+la*1.0+lgR+sa*0.85,lg=SUNG[l]*sunm+AMBG[l]*hemi+la*0.86+lgG+sa*0.93,lb=SUNB[l]*sunm+AMBB[l]*hemi+la*0.68+lgB+sa;
+   const ka=hy>0?smooth(0,0.6,hy):0,kw=1-ka,sa=0.4*hemi*ka,su=1.15*sunm*ka;const lr=(SUNR[l]*sunm+AMBR[l]*hemi)*kw+su+sa*0.85+la*1.0+lgR,lg=(SUNG[l]*sunm+AMBG[l]*hemi)*kw+su*0.97+sa*0.93+la*0.86+lgG,lb=(SUNB[l]*sunm+AMBB[l]*hemi)*kw+su*0.88+sa+la*0.68+lgB;
    let sr=alr*lr,sg=alg*lg,sb=alb*lb;
    litLum=0.3*sr+0.59*sg+0.11*sb;
    if(cau>0.5&&dep<50){const k=(cau-0.5)*2*Math.exp(-dep*0.03);sr+=k*0.9*SUNR[l];sg+=k*0.95*SUNG[l];sb+=k*0.7*SUNB[l]}
@@ -565,7 +564,7 @@ function worldPass(){
     const gh=H(hx,hz);const gr=clamp((hy-gh)/3,0,1);const aoG=0.5+0.5*gr;
     let emR=0,emG=0,emB=0;let glyph=-1;
     // moss
-    const wz=(1-smooth(30,64,dep))*(dep<0?0.3:1);
+    const wz=(1-smooth(30,64,dep))*(dep<0?0:1);
     if(ny>0.3&&p.mat!==3&&p.mat!==2&&p.mat<6){const m=smooth(0.42,0.7,vnoise(hx*0.7,hz*0.7+hy))*wz*(p.mat===1?0.4:1);ar=lerp(ar,0.28,m);ag=lerp(ag,0.5,m);ab=lerp(ab,0.2,m)}
     let lineGlyph=-1,lineDark=1;
     if(p.mat===0||p.mat===1||p.mat===5){
@@ -614,7 +613,7 @@ function worldPass(){
     addLights(hx,hy,hz,nx,ny,nz);
     let cau=0;if(dep>0&&dep<45)cau=caustic(hx,hz+hy,tnow)*Math.exp(-dep*0.03)*causticK*0.7;
     const sm=ndl*aoG*(0.7+1.1*cau);
-    const sa=hy>0?smooth(0,0.6,hy)*0.45*(p.mat===9?0.75+0.25*Math.abs(ny):hemi):0;const lr=SUNR[l]*sm+AMBR[l]*hemi+la*1.0+lgR+sa*0.85,lg=SUNG[l]*sm+AMBG[l]*hemi+la*0.86+lgG+sa*0.93,lb=SUNB[l]*sm+AMBB[l]*hemi+la*0.68+lgB+sa;
+    const ka=hy>0?smooth(0,0.6,hy):0,kw=1-ka,sa=0.45*ka*(p.mat===9?0.75+0.25*Math.abs(ny):hemi),su=1.15*sm*ka;const lr=(SUNR[l]*sm+AMBR[l]*hemi)*kw+su+sa*0.85+la*1.0+lgR,lg=(SUNG[l]*sm+AMBG[l]*hemi)*kw+su*0.97+sa*0.93+la*0.86+lgG,lb=(SUNB[l]*sm+AMBB[l]*hemi)*kw+su*0.88+sa+la*0.68+lgB;
     let sr=ar*lineDark*lr+emR,sg=ag*lineDark*lg+emG,sb=ab*lineDark*lb+emB;
     litLum=0.3*sr+0.59*sg+0.11*sb;
     const fe=(emR+emG+emB>0.3)?0.5:1;const Tf=Math.exp(-dens*tEnd*fe);
@@ -669,7 +668,7 @@ function worldPass(){
   else g=pick(rp,lvl,i,j);
   gl[idx]=g;
   {const L=lum>1e-4?lum:1e-4;cr=L+(cr-L)*1.3;cg=L+(cg-L)*1.3;cb=L+(cb-L)*1.3;if(cr<0)cr=0;if(cg<0)cg=0;if(cb<0)cb=0;const ts=(1-Math.exp(-L*2.7))/L;fR[idx]=Math.min(1,cr*ts)+0.015;fG[idx]=Math.min(1,cg*ts)+0.015;fB[idx]=Math.min(1,cb*ts)+0.025}
-  {let bk;if(kind===0)bk=AIR?0.86:WBK;else if(kind===3)bk=0.4;else if(kind===5)bk=0.62;else{const ft=Math.exp(-dens*tEnd);bk=WBK+(0.22-WBK)*ft}bR[idx]=fR[idx]*bk;bG[idx]=fG[idx]*bk;bB[idx]=fB[idx]*bk}
+  {let bk;if(AIR)bk=kind===0?0.86:kind===5?0.8:0.7;else if(kind===0)bk=WBK;else if(kind===3)bk=0.4;else if(kind===5)bk=0.62;else{const ft=Math.exp(-dens*tEnd);bk=WBK+(0.22-WBK)*ft}bR[idx]=fR[idx]*bk;bG[idx]=fG[idx]*bk;bB[idx]=fB[idx]*bk}
  }}
 }
 
@@ -1153,7 +1152,7 @@ function step(ms){
  const t1=performance.now();
  primPass();worldPass();
  const t2=performance.now();
- if(cy>0){edgePass();animalPass()}else{floraPass();edgePass();fishPass();animalPass();critterPass();jellyPass();particlePass(paused?0:dt)}
+ if(cy>0){}else{floraPass();edgePass();fishPass();animalPass();critterPass();jellyPass();particlePass(paused?0:dt)}
  const t3=performance.now();
  ugl.fill(0);uK.fill(1);
  if(S.mode==='title')titlePass();else hudPass();
