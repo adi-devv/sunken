@@ -28,6 +28,7 @@ const xc=z=>35*Math.sin(z*0.011);
 const FPTS=[[-20,10],[0,12],[140,21],[210,33],[330,50],[390,68],[460,92],[530,108],[640,112]];
 function floorDepth(z){if(z<=FPTS[0][0])return FPTS[0][1];for(let i=1;i<FPTS.length;i++){if(z<=FPTS[i][0]){const a=FPTS[i-1],b=FPTS[i];let t=(z-a[0])/(b[0]-a[0]);t=t*t*(3-2*t);return a[1]+(b[1]-a[1])*t}}return 112}
 const TEMPLE={x:0,z:570,y0:-112};
+const ISL={x:-42,z:62,r:30};
 (function buildTerrain(){
  for(let iz=0;iz<NZ;iz++){const z=GZ0+iz*2;const d0=floorDepth(z);const cz=xc(z);
   const am1=lerp(4,9,smooth(100,300,z)),am2=lerp(0.8,2.2,smooth(100,300,z));
@@ -42,6 +43,10 @@ const TEMPLE={x:0,z:570,y0:-112};
  for(let n=0;n<190;n++){const z=60+r()*470,x=xc(z)+(r()-0.5)*150;if(Math.hypot((x-TEMPLE.x)*0.7,z-TEMPLE.z)<70)continue;
   const rad=3+r()*7,ht=1.5+r()*5.5;const x0=Math.max(0,((x-rad*2.2-GX0)/2)|0),x1=Math.min(NX-1,((x+rad*2.2-GX0)/2)|0),z0=Math.max(0,((z-rad*2.2-GZ0)/2)|0),z1=Math.min(NZ-1,((z+rad*2.2-GZ0)/2)|0);
   for(let iz=z0;iz<=z1;iz++)for(let ix=x0;ix<=x1;ix++){const px=GX0+ix*2-x,pz=GZ0+iz*2-z;const q=(px*px+pz*pz)/(rad*rad);HF[iz*NX+ix]+=ht*Math.exp(-q*1.4)*(0.85+0.3*vnoise(px*0.4+n,pz*0.4))}}
+ // the island: a beach ring around a grassy hill, rising out of the shallows
+ for(let iz=0;iz<NZ;iz++)for(let ix=0;ix<NX;ix++){const x=GX0+ix*2,z=GZ0+iz*2;const ex=x-ISL.x,ez=z-ISL.z;const d=Math.hypot(ex*0.85,ez);if(d>ISL.r*1.4)continue;
+  const an=Math.atan2(ez,ex);const rr=d/(ISL.r*(0.85+0.3*vnoise(Math.cos(an)*1.6+4,Math.sin(an)*1.6+9)));const sI=1-smooth(0.18,1.12,rr);if(sI<=0)continue;
+  const hi=-13+14*smooth(0,0.55,sI)+(4.5+2.5*fbm(x*0.05,z*0.05,3))*smooth(0.68,1,sI);const o=iz*NX+ix;if(hi>HF[o])HF[o]=hi}
 })();
 let HMAX=-1e9;for(let i=0;i<HF.length;i++)if(HF[i]>HMAX)HMAX=HF[i];
 function H(x,z){let gx=(x-GX0)*0.5,gz=(z-GZ0)*0.5;if(gx<0)gx=0;else if(gx>NX-1.001)gx=NX-1.001;if(gz<0)gz=0;else if(gz>NZ-1.001)gz=NZ-1.001;
@@ -63,7 +68,7 @@ const GI={};for(let i=0;i<GLYPHS.length;i++)GI[GLYPHS[i]]=i;
 const G=c=>GI[c]===undefined?GI['?']:GI[c];
 const ramp=s=>Array.from(s,G);
 const R_WATER=ramp(" ·.˙:"),R_SAND=ramp(" .·,:;~=+*"),R_ROCK=ramp(" .:;+x%#&@"),R_STONE=ramp(" ·:;+=*#%@"),R_SURF=ramp(" ˙·∙~≈≈");
-const R_JELLY=ramp(".:o*O0"),R_ANIM=ramp("oO0@@"),R_STAR=ramp(".·*+");
+const R_SKY=ramp("  .·:░▒");const R_JELLY=ramp(".:o*O0"),R_ANIM=ramp("oO0@@"),R_STAR=ramp(".·*+");
 let atlasA,atlasOff,atlasStart;
 
 /* ================= GRID ================= */
@@ -233,6 +238,20 @@ function buildRuins(){
   braz(tx-6,F+0.4,tz-20,[1,0.8,0.4]);braz(tx+6,F+0.4,tz-20,[1,0.8,0.4]);braz(tx-6,F+0.4,tz+10,[0.4,0.9,1]);braz(tx+6,F+0.4,tz+10,[0.7,0.45,1]);
  }
  // bioluminescent lichen / big mushroom domes? skip
+ // the island's rock shelf: walk out onto it, or swim underneath
+ {const RK=[0.72,0.69,0.62],sx=ISL.x+21,sz=ISL.z-17;
+  sph(sx,-0.4,sz,9,1.7,6.5,0,RK);sph(sx-5,0.1,sz+3.5,6,1.6,5,0,RK);sph(sx+5.5,-0.7,sz-2.5,5,1.3,4,0,RK);
+  for(const q of[[sx+6.5,sz+2.5],[sx-1,sz-4.5]]){const g=H(q[0],q[1]);sph(q[0],(g-1.2)/2,q[1],1.5,(-1.2-g)/2+0.6,1.7,0,RK)}
+  const r2=rng(55);for(let k=0;k<9;k++){const a=r2()*TAU,d=ISL.r*(0.55+r2()*0.25);const x=ISL.x+Math.cos(a)*d,z=ISL.z+Math.sin(a)*d;const g=H(x,z),s=0.6+r2()*1.0;sph(x,g+s*0.2,z,s*1.2,s*0.8,s,0,RK)}}
+ // palms
+ {const TR=[0.64,0.52,0.36],FR=[0.32,0.58,0.2],r3=rng(31);
+  for(const q of[[-6,4],[4,-5],[-2,-9],[9,3],[-10,-3],[2,9]]){const x0=ISL.x+q[0],z0=ISL.z+q[1];const g=H(x0,z0);const lx=r3()-0.5,lz=r3()-0.5,ll=Math.hypot(lx,lz)||1;const bx=lx/ll,bz=lz/ll;
+   const ht=5.5+r3()*2.5,lean=1.2+r3()*1.6;let px=x0,py=g-0.3,pz=z0;const N=4;
+   for(let k=0;k<N;k++){const t1=(k+1)/N;const nx=x0+bx*lean*t1*t1,ny=g-0.3+ht*t1,nz=z0+bz*lean*t1*t1;const p=sph((px+nx)/2,(py+ny)/2,(pz+nz)/2,1,1,1,9,TR);
+    setO(p,(px+nx)/2,(py+ny)/2,(pz+nz)/2,Math.hypot(nx-px,ny-py,nz-pz)/2+0.08,0.3-k*0.03,0.3-k*0.03,nx-px,ny-py,nz-pz,1,0,0);p.nc=true;px=nx;py=ny;pz=nz}
+   const nf=7,a0=r3()*TAU;for(let k=0;k<nf;k++){const a=a0+k*TAU/nf+(r3()-0.5)*0.4;const ox=Math.cos(a),oz=Math.sin(a),dr=-0.25-r3()*0.35;
+    const p=sph(px,py,pz,1,1,1,9,FR);setO(p,px+ox*1.7,py+dr*1.7*0.7+0.1,pz+oz*1.7,1.9,0.07,0.5,ox,dr,oz,0,1,0);p.nc=true;p.leaf=1}
+   for(let k=0;k<3;k++){const a=a0+k*2.1;const p=sph(px+Math.cos(a)*0.32,py-0.3,pz+Math.sin(a)*0.32,0.2,0.22,0.2,9,[0.42,0.3,0.14]);p.nc=true}}}
 }
 buildRuins();
 const WH=[];for(let i=0;i<13;i++)WH.push({k:2,x:0,y:-30,z:300,a:3,b:3,c:3,mat:4,col:[0.1,0.15,0.2],rel:-1,br:3});
@@ -253,7 +272,7 @@ RL.forEach(q=>{q.px=q.x;q.pz=q.z});
 /* ================= FLORA ================= */
 const FX=[],FY=[],FZ=[],FT=[],FH=[],FP=[];
 const FB=12,NFBX=Math.ceil(512/FB)+2,NFBZ=Math.ceil(660/FB)+2;const FBK=new Array(NFBX*NFBZ);for(let i=0;i<FBK.length;i++)FBK[i]=[];
-function addFlora(t,x,z,h,ph){const i=FX.length;FX.push(x);FZ.push(z);FY.push(H(x,z));FT.push(t);FH.push(h);FP.push(ph);const bx=((x+256)/FB)|0,bz=((z+20)/FB)|0;if(bx>=0&&bz>=0&&bx<NFBX&&bz<NFBZ)FBK[bz*NFBX+bx].push(i)}
+function addFlora(t,x,z,h,ph){if(H(x,z)>-1.4)return;const i=FX.length;FX.push(x);FZ.push(z);FY.push(H(x,z));FT.push(t);FH.push(h);FP.push(ph);const bx=((x+256)/FB)|0,bz=((z+20)/FB)|0;if(bx>=0&&bz>=0&&bx<NFBX&&bz<NFBZ)FBK[bz*NFBX+bx].push(i)}
 (function(){const r=rng(777);
  for(let z=-15;z<345;z+=2.5)for(let x=-245;x<245;x+=2.5){const jx=x+(r()-0.5)*2.5,jz=z+(r()-0.5)*2.5;const zf=1-smooth(170,340,jz);if(zf<=0)continue;
   const cl=vnoise(jx*0.035+11,jz*0.035+3);const dn=zf*smooth(0.28,0.55,cl);const hh=H(jx,jz);
@@ -451,7 +470,7 @@ const perf={world:0,objs:0,draw:0,total:0,fps:60,frameMs:16};
 const visP=[];
 function primPass(){
  primT.fill(1e9);primI.fill(-1);visP.length=0;
- for(let n=0;n<ALLP.length;n++){const p=ALLP[n];const dx=p.x-cx,dy=p.y-cy,dz=p.z-cz;const lim=(p.mat===4?320:maxD)+p.br;if(dx*dx+dy*dy+dz*dz>lim*lim)continue;
+ for(let n=0;n<ALLP.length;n++){const p=ALLP[n];const dx=p.x-cx,dy=p.y-cy,dz=p.z-cz;const lim=(p.mat===4?320:maxD)+p.br;if(dx*dx+dy*dy+dz*dz>lim*lim)continue;if(cy<0?p.y-p.br>0.3:p.y+p.br<-15)continue;
   const vz=dx*fX+dy*fY+dz*fZ;if(vz<-p.br)continue;
   let i0=0,i1=COLS-1,j0=0,j1=ROWS-1;
   if(vz>p.br*1.05+0.3){const vx=dx*rX+dz*rZ,vy=dx*uX+dy*uY+dz*uZ;const k=FOCAL/vz;const sx=COLS*0.5+vx*k/CW,sy=ROWS*0.5-vy*k/CH;const rw=p.br*k/CW*1.12+1,rh=p.br*k/CH*1.12+1;
@@ -474,22 +493,26 @@ function worldPass(){
  const pingR=(T-ping.t)*42,pingOn=T-ping.t<3.6;const pingFade=pingOn?1-(T-ping.t)/3.6:0;
  const sI=SUNG[li(envDep)];
  const fcR=fogR,fcG=fogG,fcB=fogB;
- const sdx=SUNDIR[0],sdy=SUNDIR[1],sdz=SUNDIR[2];
+ const sdx=SUNDIR[0],sdy=SUNDIR[1],sdz=SUNDIR[2];const AIR=oy>0;
  for(let j=0;j<ROWS;j++){for(let i=0;i<COLS;i++){
   const idx=j*COLS+i;const dx=dirX[idx],dy=dirY[idx],dz=dirZ[idx];
   let tEnd=maxD,kind=0,pIdx=-1;const pt=primT[idx];
   if(pt<maxD){tEnd=pt;kind=2;pIdx=primI[idx]}else if(pt<400&&primI[idx]>=0&&ALLP[primI[idx]].mat===4){tEnd=pt;kind=4;pIdx=primI[idx]}
   let tLim=kind===4?maxD:tEnd;
-  if(dy>1e-4){const ts=-oy/dy;if(ts<tLim){tLim=ts;tEnd=ts;kind=3}}
+  if(!AIR&&dy>1e-4){const ts=-oy/dy;if(ts<tLim){tLim=ts;tEnd=ts;kind=3}}
   if(kind===4)tEnd=Math.min(pt,maxD);
+  // from above, the water is see-through for its first few metres
+  let wsT=-1;if(AIR&&dy<-1e-4){wsT=-oy/dy;if(kind===4){kind=0;tEnd=maxD;pIdx=-1}const lim=wsT+14;if(lim<tEnd){tEnd=lim;if(kind===2){kind=0;pIdx=-1}}}
   if(!(dy>=0&&oy>HMAX)){let t=0.5,prev=0.5;let hit=false;let st=0;
-   while(t<tEnd&&st<72){const px=ox+dx*t,py=oy+dy*t,pz=oz+dz*t;const h=H(px,pz);const dd=py-h;
+   while(t<tEnd&&st<72){const px=ox+dx*t,py=oy+dy*t,pz=oz+dz*t;if(dy>0&&py>HMAX)break;const h=H(px,pz);const dd=py-h;
     if(dd<0.03){let lo=prev,hi=t;for(let k=0;k<4;k++){const m=(lo+hi)*0.5;if(oy+dy*m-H(ox+dx*m,oz+dz*m)<0)hi=m;else lo=m}tEnd=(lo+hi)*0.5;kind=1;hit=true;break}
     prev=t;let s=dd*0.55;t+=s<0.35?0.35:s>6?6:s;st++}
    if(!hit&&st>=72&&kind!==3){const px=ox+dx*t,py=oy+dy*t,pz=oz+dz*t;if(py-H(px,pz)<2.5&&t<tEnd){tEnd=t;kind=1}}}
-  zbuf[idx]=kind===0?1e9:tEnd;
+  if(wsT>0&&kind===0){kind=5;tEnd=wsT}
+  zbuf[idx]=kind===0?1e9:wsT>0&&tEnd>wsT?wsT:tEnd;
   // inscatter fog colour
   const up=0.72+0.5*dy;let fr=fcR*up,fg=fcG*up,fb=fcB*up;
+  if(AIR){const e=Math.sqrt(dy>0?dy:0);fr=0.78+(0.26-0.78)*e;fg=0.86+(0.5-0.86)*e;fb=0.95+(0.9-0.95)*e}
   const sd=dx*sdx+dy*sdy+dz*sdz;if(sd>0.6&&sI>0.04){const g=Math.pow((sd-0.6)*2.5,3)*0.5*sI;fr+=g*1.0;fg+=g*0.95;fb+=g*0.7}
   let cr=fr,cg=fg,cb=fb,lvl=0,rp=R_WATER,gx=-1;const Tt=kind===0?0:Math.exp(-dens*tEnd);
   let litLum=0;
@@ -507,21 +530,23 @@ function worldPass(){
    const mp=smooth(0.45,0.65,n1);br=lerp(br,pr,mp);bg=lerp(bg,pg,mp);bb=lerp(bb,pb,mp);
    const rk=smooth(0.22,0.5,slope+(n2-0.5)*0.25);
    const rr=w1*0.5+w2*0.38+w3*0.22+w4*0.14,rg=w1*0.46+w2*0.34+w3*0.26+w4*0.15,rb=w1*0.4+w2*0.34+w3*0.34+w4*0.22;
-   const ripple=w1>0.2?0.9+0.1*Math.sin(hx*1.3+n1*9+hz*0.6):1;
+   const ripple=w1>0.2&&dep>0.4?0.9+0.1*Math.sin(hx*1.3+n1*9+hz*0.6):1;
    const tex=0.82+0.36*n2;
-   const alr=lerp(br,rr,rk)*tex*ripple,alg=lerp(bg,rg,rk)*tex*ripple,alb=lerp(bb,rb,rk)*tex*ripple;
+   let alr=lerp(br,rr,rk)*tex*ripple,alg=lerp(bg,rg,rk)*tex*ripple,alb=lerp(bb,rb,rk)*tex*ripple;
+   let grass=0;if(hy>-0.6){if(hy<0.5){const wt=0.72+0.28*smooth(-0.6,0.5,hy);alr*=wt;alg*=wt;alb*=wt}
+    grass=smooth(1.9,3.0,hy+(n1-0.5)*1.4)*(1-rk*0.8);if(grass>0){const gv=0.75+0.5*n2;alr=lerp(alr,0.3*gv,grass);alg=lerp(alg,0.56*gv,grass);alb=lerp(alb,0.17*gv,grass)}}
    let ndl=nx*sdx+ny*sdy+nz*sdz;ndl=ndl<0?0:ndl;ndl=0.25+0.75*ndl;
-   let cau=0;if(dep<70){cau=caustic(hx,hz,tnow)*Math.exp(-dep*0.028)*causticK}
+   let cau=0;if(dep>0&&dep<70){cau=caustic(hx,hz,tnow)*Math.exp(-dep*0.028)*causticK*smooth(0,1.2,dep)}
    const sunm=ndl*(0.55+1.5*cau)*ao;
    const hemi=(0.5+0.5*ny)*ao;
    const lamp=lampI*(-(dx*nx+dy*ny+dz*nz));const la=(lamp>0?lamp:0)/(1+tEnd*tEnd*LAMPF)*(0.35+0.65*smooth(0.55,0.9,dx*fX+dy*fY+dz*fZ));
    addLights(hx,hy,hz,nx,ny,nz);
-   const lr=SUNR[l]*sunm+AMBR[l]*hemi+la*1.0+lgR,lg=SUNG[l]*sunm+AMBG[l]*hemi+la*0.86+lgG,lb=SUNB[l]*sunm+AMBB[l]*hemi+la*0.68+lgB;
+   const sa=hy>0?smooth(0,0.6,hy)*0.42*hemi:0;const lr=SUNR[l]*sunm+AMBR[l]*hemi+la*1.0+lgR+sa*0.85,lg=SUNG[l]*sunm+AMBG[l]*hemi+la*0.86+lgG+sa*0.93,lb=SUNB[l]*sunm+AMBB[l]*hemi+la*0.68+lgB+sa;
    let sr=alr*lr,sg=alg*lg,sb=alb*lb;
    litLum=0.3*sr+0.59*sg+0.11*sb;
    if(cau>0.5&&dep<50){const k=(cau-0.5)*2*Math.exp(-dep*0.03);sr+=k*0.9*SUNR[l];sg+=k*0.95*SUNG[l];sb+=k*0.7*SUNB[l]}
    cr=fr+(sr-fr)*Tt;cg=fg+(sg-fg)*Tt;cb=fb+(sb-fb)*Tt;
-   rp=rk>0.5?R_ROCK:R_SAND;
+   rp=rk>0.5?R_ROCK:R_SAND;if(grass>0.5)gx=G(n2>0.6?'"':n2>0.35?"'":',');
    if(cau>0.58&&dep<46&&Tt>0.25){const c2=cau;gx=c2>0.9?G('▒'):c2>0.76?G('░'):c2>0.66?G('·'):G('˙');litLum+=cau*0.3}
    lvl=(1-Math.exp(-litLum*2.4))*(0.2+0.8*Tt);
   }else if(kind===2||kind===4){
@@ -540,7 +565,7 @@ function worldPass(){
     const gh=H(hx,hz);const gr=clamp((hy-gh)/3,0,1);const aoG=0.5+0.5*gr;
     let emR=0,emG=0,emB=0;let glyph=-1;
     // moss
-    const wz=1-smooth(30,64,dep);
+    const wz=(1-smooth(30,64,dep))*(dep<0?0.3:1);
     if(ny>0.3&&p.mat!==3&&p.mat!==2&&p.mat<6){const m=smooth(0.42,0.7,vnoise(hx*0.7,hz*0.7+hy))*wz*(p.mat===1?0.4:1);ar=lerp(ar,0.28,m);ag=lerp(ag,0.5,m);ab=lerp(ab,0.2,m)}
     let lineGlyph=-1,lineDark=1;
     if(p.mat===0||p.mat===1||p.mat===5){
@@ -583,19 +608,19 @@ function worldPass(){
     else if(rel&&ny<0.6&&ny>-0.6&&p.k!==2){ // rune carving
      const cu=Math.floor(pu*2.2),cvv=Math.floor(pv*2.2);const hv=hash2(cu*7+rel.i,cvv*13);
      if(hv>0.52){const pul=0.65+0.35*Math.sin(tnow*2.2+hv*9);const c=rel.found?[1,0.78,0.34]:rel.col;emR=c[0]*pul*0.95;emG=c[1]*pul*0.95;emB=c[2]*pul*0.95;glyph=G('┼╬═║≡┤├┴┬╪'[Math.floor(hv*37)%10])}}
-    let ndl=nx*sdx+ny*sdy+nz*sdz;ndl=ndl<0?0:ndl;ndl=0.22+0.78*ndl;
+    let ndl=nx*sdx+ny*sdy+nz*sdz;if(p.leaf)ndl=Math.abs(ndl)*0.8+0.15;ndl=ndl<0?0:ndl;ndl=0.22+0.78*ndl;
     const hemi=(0.5+0.5*ny)*aoG;
     const lamp=lampI*(-(dx*nx+dy*ny+dz*nz));const la=(lamp>0?lamp:0)/(1+tEnd*tEnd*LAMPF)*(0.35+0.65*smooth(0.55,0.9,dx*fX+dy*fY+dz*fZ));
     addLights(hx,hy,hz,nx,ny,nz);
-    let cau=0;if(dep<45)cau=caustic(hx,hz+hy,tnow)*Math.exp(-dep*0.03)*causticK*0.7;
+    let cau=0;if(dep>0&&dep<45)cau=caustic(hx,hz+hy,tnow)*Math.exp(-dep*0.03)*causticK*0.7;
     const sm=ndl*aoG*(0.7+1.1*cau);
-    const lr=SUNR[l]*sm+AMBR[l]*hemi+la*1.0+lgR,lg=SUNG[l]*sm+AMBG[l]*hemi+la*0.86+lgG,lb=SUNB[l]*sm+AMBB[l]*hemi+la*0.68+lgB;
+    const sa=hy>0?smooth(0,0.6,hy)*0.45*(p.mat===9?0.75+0.25*Math.abs(ny):hemi):0;const lr=SUNR[l]*sm+AMBR[l]*hemi+la*1.0+lgR+sa*0.85,lg=SUNG[l]*sm+AMBG[l]*hemi+la*0.86+lgG+sa*0.93,lb=SUNB[l]*sm+AMBB[l]*hemi+la*0.68+lgB+sa;
     let sr=ar*lineDark*lr+emR,sg=ag*lineDark*lg+emG,sb=ab*lineDark*lb+emB;
     litLum=0.3*sr+0.59*sg+0.11*sb;
     const fe=(emR+emG+emB>0.3)?0.5:1;const Tf=Math.exp(-dens*tEnd*fe);
     cr=fr+(sr-fr)*Tf;cg=fg+(sg-fg)*Tf;cb=fb+(sb-fb)*Tf;
     rp=p.mat===6?R_ANIM:R_STONE;lvl=(1-Math.exp(-litLum*2.4))*(0.25+0.75*Tf);
-    if(glyph>=0)gx=glyph;else if(lineGlyph>=0&&lvl>0.12)gx=lineGlyph;
+    if(glyph>=0)gx=glyph;else if(lineGlyph>=0&&lvl>0.12)gx=lineGlyph;else if(p.leaf)gx=G(lvl>0.45?'%':lvl>0.25?'*':'"');
     if(p.mat===3&&gx<0)gx=glyph;
    }
   }else if(kind===3){ // water surface
@@ -605,16 +630,30 @@ function worldPass(){
    cr=fr+(sr-fr)*f;cg=fg+(sg-fg)*f;cb=fb+(sb-fb)*f;litLum=0.3*cr+0.59*cg+0.11*cb;
    rp=R_SURF;lvl=clamp(br*0.9*(0.3+0.7*f*sI),0,1);
   }
+  if(wsT>0&&(kind===5||tEnd>wsT)){ // the sea seen from above
+   const hx=ox+dx*wsT,hz=oz+dz*wsT;const w=Math.sin(hx*0.5+tnow*0.9)*Math.sin(hz*0.4-tnow*0.7)+0.5*Math.sin((hx+hz)*1.1+tnow*1.7)+0.3*Math.sin(hx*2.3-tnow*2.1+hz*1.7);
+   const ci=-dy;const fres=clamp(0.04+0.9*Math.pow(1-ci,4)+w*0.04,0,1);
+   let wr=0.03,wg=0.2,wb=0.27,a=0;if(kind!==5){a=Math.exp(-(tEnd-wsT)*0.2);wr+=(cr-wr)*a;wg+=(cg-wg)*a;wb+=(cb-wb)*a}
+   const e=Math.sqrt(Math.min(1,ci*0.6+0.04*w+0.05));const skr=0.78-0.52*e,skg=0.86-0.36*e,skb=0.95-0.05*e;
+   let sr=wr+(skr-wr)*fres,sg=wg+(skg-wg)*fres,sb=wb+(skb-wb)*fres;
+   const sp=hash2(Math.floor(hx*1.7+tnow*0.6),Math.floor(hz*1.7));const gl=w>0.95&&sp>0.82?(w-0.95)*(0.6+sp):0;sr+=gl;sg+=gl*0.97;sb+=gl*0.9;
+   const f=Math.exp(-dens*wsT);cr=fr+(sr-fr)*f;cg=fg+(sg-fg)*f;cb=fb+(sb-fb)*f;litLum=0.3*cr+0.59*cg+0.11*cb;
+   if(a<0.45){rp=R_SURF;gx=gl>0.15?G('*'):-1;lvl=clamp((0.22+w*0.16+fres*0.5)*(0.4+0.6*f),0,1)}else lvl*=0.8}
+  else if(AIR&&kind===0){ // sky: a sun halo, and clouds on a high layer
+   let cl=0;if(dy>0.015){const t=(90-oy)/dy;const u=ox+dx*t,v=oz+dz*t;cl=smooth(0.5,0.72,fbm(u*0.005+tnow*0.006,v*0.005+tnow*0.002,4))*smooth(0.015,0.12,dy)}
+   const sd2=dx*sdx+dy*sdy+dz*sdz;const sun=sd2>0.9985?1.5:sd2>0.995?(sd2-0.995)/0.0035*0.8:0;
+   cr=lerp(fr,0.98,cl*0.9)+sun;cg=lerp(fg,0.98,cl*0.9)+sun*0.95;cb=lerp(fb,1,cl*0.9)+sun*0.75;litLum=0.3*cr+0.59*cg+0.11*cb;
+   rp=R_SKY;lvl=cl*0.85+(sun>0?0.9:0);if(sun>0.8)gx=G('@')}
   // god rays
-  if(sI>0.03){const tt=tEnd<maxD?tEnd:maxD*0.8;const n=5,step=tt/n;const jit=BAY[((j&3)<<2)|(i&3)]+0.5;let sh=0;
+  if(sI>0.03&&!AIR){const tt=tEnd<maxD?tEnd:maxD*0.8;const n=5,step=tt/n;const jit=BAY[((j&3)<<2)|(i&3)]+0.5;let sh=0;
    for(let k=0;k<n;k++){const s=(k+jit)*step;const sx=ox+dx*s,sy=oy+dy*s,sz=oz+dz*s;if(sy>-0.3)continue;const uu=sx+sy*0.28,ww=sz+sy*0.14;
     let v=vnoise(uu*0.09+tnow*0.02,ww*0.09)*0.65+vnoise(uu*0.23-tnow*0.03,ww*0.2)*0.35-0.4;if(v>0)sh+=v*v*SUNG[li(-sy)]*5}
    if(sh>0){sh*=step*0.055*(0.35+0.65*Math.pow(Math.max(0,sd),2));cr+=sh*1.0;cg+=sh*0.95;cb+=sh*0.62;if(kind===0||Tt<0.4){lvl+=sh*2.2}}}
   // beacon pillars
   if(BN>0){const hz2=dx*dx+dz*dz;if(hz2>1e-6){const lim=kind===0||kind===3?420:tEnd;
-   for(let b=0;b<BN;b++){const B=BEAMS[b];const tc=((B.x-ox)*dx+(B.z-oz)*dz)/hz2;if(tc<0.5||tc>lim)continue;const yc=oy+dy*tc;if(yc<B.y0||yc>B.top)continue;
+   for(let b=0;b<BN;b++){const B=BEAMS[b];const tc=((B.x-ox)*dx+(B.z-oz)*dz)/hz2;if(tc<0.5||tc>lim)continue;const yc=oy+dy*tc;if(yc<B.y0||yc>(AIR&&B.top>-0.5?70:B.top))continue;
     const ex=ox+dx*tc-B.x,ez=oz+dz*tc-B.z;const r=(1.5+tc*0.022)*B.w;const q=(ex*ex+ez*ez)/(r*r);if(q>12)continue;
-    const fl=0.7+0.3*Math.sin(yc*0.7-tnow*3.4)+0.15*Math.sin(yc*2.3-tnow*7);const fade=Math.exp(-dens*0.12*tc)*B.k*1.7*fl*smooth(B.y0,B.y0+2.5,yc)*(1-0.6*smooth(B.top-3,B.top,yc));
+    const fl=0.7+0.3*Math.sin(yc*0.7-tnow*3.4)+0.15*Math.sin(yc*2.3-tnow*7);const fade=Math.exp(-dens*0.12*tc)*B.k*1.7*fl*smooth(B.y0,B.y0+2.5,yc)*(AIR?1-smooth(20,70,yc):1-0.6*smooth(B.top-3,B.top,yc));
     const core=Math.exp(-q*1.6)*fade,halo=Math.exp(-q*0.25)*0.3*fade;const g=core+halo;cr+=B.r*g;cg+=B.g*g;cb+=B.b*g;lvl=Math.max(lvl,g*0.9);if(core>0.5)gx=G(core>1.2?'#':'|')}}}
   // sonar
   if(pingOn){const d=kind===0?1e9:tEnd;let band=0;const del=Math.abs(d-pingR);if(del<1.6&&kind!==0)band=(1-del/1.6);
@@ -626,11 +665,11 @@ function worldPass(){
   let lum=cg*0.59+cr*0.3+cb*0.11;
   let g;
   if(gx>=0)g=gx;
-  else if(kind===0){const l2=clamp(lvl*1.0,0,1);g=pick(R_WATER,l2,i,j)}
+  else if(kind===0&&!AIR){const l2=clamp(lvl*1.0,0,1);g=pick(R_WATER,l2,i,j)}
   else g=pick(rp,lvl,i,j);
   gl[idx]=g;
   {const L=lum>1e-4?lum:1e-4;cr=L+(cr-L)*1.3;cg=L+(cg-L)*1.3;cb=L+(cb-L)*1.3;if(cr<0)cr=0;if(cg<0)cg=0;if(cb<0)cb=0;const ts=(1-Math.exp(-L*2.7))/L;fR[idx]=Math.min(1,cr*ts)+0.015;fG[idx]=Math.min(1,cg*ts)+0.015;fB[idx]=Math.min(1,cb*ts)+0.025}
-  {let bk;if(kind===0)bk=WBK;else if(kind===3)bk=0.4;else{const ft=Math.exp(-dens*tEnd);bk=WBK+(0.22-WBK)*ft}bR[idx]=fR[idx]*bk;bG[idx]=fG[idx]*bk;bB[idx]=fB[idx]*bk}
+  {let bk;if(kind===0)bk=AIR?0.86:WBK;else if(kind===3)bk=0.4;else if(kind===5)bk=0.62;else{const ft=Math.exp(-dens*tEnd);bk=WBK+(0.22-WBK)*ft}bR[idx]=fR[idx]*bk;bG[idx]=fG[idx]*bk;bB[idx]=fB[idx]*bk}
  }}
 }
 
@@ -957,10 +996,10 @@ const NARR=['Long ago, the city of Atlantis sank beneath the sea.','Its people d
 function zoneOf(d){return d<28?0:d<58?1:d<95?2:3}
 function hudPass(){
  const COLS=UCOLS,ROWS=UROWS,CW=UCW,CH=UCH;
- const dep=Math.max(0,-P.y);const zi=zoneOf(dep);
+ const dep=Math.max(0,-P.y);const zi=zoneOf(dep);const zl=P.y>-0.7?(P.gr||P.y>1.2?'THE ISLAND':'AT THE SURFACE'):ZN[zi];
  const tint=zi===0?[1,0.92,0.6]:zi===1?[0.7,0.95,1]:zi===2?[0.55,0.75,1]:[0.5,1,0.95];
  if(S.mode==='play'){
-  puts(2,1,'DEPTH '+dep.toFixed(0).padStart(3)+' m',tint[0],tint[1],tint[2],0.3);puts(2,2,ZN[zi],tint[0]*0.8,tint[1]*0.8,tint[2]*0.8,0.3);
+  puts(2,1,'DEPTH '+dep.toFixed(0).padStart(3)+' m',tint[0],tint[1],tint[2],0.3);puts(2,2,zl,tint[0]*0.8,tint[1]*0.8,tint[2]*0.8,0.3);
   const rs='BEACONS LIT '+found+'/8';puts(COLS-rs.length-2,1,rs,1,0.85,0.45,0.3);
   {const pip=(n,m)=>'■'.repeat(n)+'□'.repeat(m-n);const gs='LAMP '+pip(lampLv,2)+'  WHISTLE '+pip(sonarLv,2)+'  FINS '+pip(finsLv,2);puts(COLS-gs.length-2,3,gs,0.55,0.85,0.75,0.3)}
   {const a=T-S.startT-2.5;if(a>0&&a<NARR.length*4.6&&found===0){const n=Math.floor(a/4.6),u=a-n*4.6;const k=smooth(0,0.8,u)*(1-smooth(3.8,4.6,u));putsC(Math.floor(ROWS*0.32),NARR[n],0.95*k,0.88*k,0.62*k,1-0.65*k)}}
@@ -1024,19 +1063,30 @@ function updatePlayer(dt){
  const fx_=cp*sy,fy_=sp,fz_=cp*cy_,rx_=cy_,rz_=-sy;
  let wx=fx_*fw+rx_*rt,wy=fy_*fw+up,wz=fz_*fw+rz_*rt;const wl=Math.hypot(wx,wy,wz);const spd=(boost?7.5:3.6)*(1+0.22*finsLv);
  if(wl>0){wx=wx/wl*spd;wy=wy/wl*spd;wz=wz/wl*spd}
- const k=1-Math.exp(-dt*(wl>0?1.5:0.9));P.vx+=(wx-P.vx)*k;P.vy+=(wy-P.vy)*k;P.vz+=(wz-P.vz)*k;
- P.vx+=curX*0.02*dt;
+ const gH=H(P.x,P.z),FL=0.35,EYE=1.55;
+ const land=P.gr||(gH>-1.2&&P.y<=gH+EYE+0.2),inAir=!land&&P.y>FL+0.1;
+ if(land||inAir){ // walking on the island, or in the air after a jump
+  let hx=sy*fw+rx_*rt,hz=cy_*fw+rz_*rt;const hl=Math.hypot(hx,hz);const ws=(boost?7:3.8)*(1+0.12*finsLv);if(hl>0){hx=hx/hl*ws;hz=hz/hl*ws}
+  const kk=1-Math.exp(-dt*(land?9:0.7));P.vx+=(hx-P.vx)*kk;P.vz+=(hz-P.vz)*kk;
+  if(land&&sp0&&(keys.Space||keys.KeyE)&&P.vy<=0.1)P.vy=5.6;
+  P.vy-=13*dt}
+ else{
+  const atS=P.y>-1.4;if(atS&&wy>0&&P.y>FL-0.3)wy=0;   // at the surface you float, you can't fly
+  const k=1-Math.exp(-dt*(wl>0?1.5:0.9));P.vx+=(wx*(atS?0.75:1)-P.vx)*k;P.vy+=(wy-P.vy)*k;P.vz+=(wz*(atS?0.75:1)-P.vz)*k;
+  if(atS&&wy>-0.6){const tg=FL+0.09*Math.sin(T*1.3+P.x*0.35+P.z*0.25);P.vy+=((tg-P.y)*6-P.vy*2.2)*dt}
+  P.vx+=curX*0.02*dt}
  P.x+=P.vx*dt;P.y+=P.vy*dt;P.z+=P.vz*dt;
  // bounds
- P.x=clamp(P.x,-235,235);P.z=clamp(P.z,-12,625);if(P.y>-1.0){P.y=-1.0;if(P.vy>0)P.vy=0}
- const gh=H(P.x,P.z)+1.3;if(P.y<gh){P.y=gh;if(P.vy<0)P.vy*=0.2}
- collide();
+ P.x=clamp(P.x,-235,235);P.z=clamp(P.z,-12,625);if(P.y>40)P.y=40;
+ const g2=H(P.x,P.z),stand=g2>-1.2;const gh=g2+(stand?EYE:1.3);if(P.y<gh||(P.gr&&stand&&P.vy<=0&&P.y<gh+0.5)){P.y=gh;if(P.vy<0)P.vy=stand?0:P.vy*0.2}
+ const y0=P.y;collide();const pushed=P.y>y0+1e-4;
+ if(pushed&&(land||inAir)&&P.vy<=0){P.vy=0;P.gr=true}else P.gr=stand&&P.y<=gh+0.06&&P.vy<=0.01;
  const speed=Math.hypot(P.vx,P.vy,P.vz);
- bubT-=dt;if(bubT<=0&&speed>1.0){bubble(boost?1.3:0.8);bubT=boost?0.1+Math.random()*0.14:0.3+Math.random()*0.5;if(boost&&Math.random()<0.5)setTimeout(()=>bubble(0.7),60)}
+ bubT-=dt;if(bubT<=0&&speed>1.0&&P.y<-0.8){bubble(boost?1.3:0.8);bubT=boost?0.1+Math.random()*0.14:0.3+Math.random()*0.5;if(boost&&Math.random()<0.5)setTimeout(()=>bubble(0.7),60)}
  return speed}
 const _p=[0,0,0],_c=[0,0,0];const AXI=[[0,1,2],[1,0,2],[2,0,1]];
 function collide(){const R=0.85;
- for(let n=0;n<PR.length;n++){const p=PR[n];if(p.y>1e3)continue;const dx=P.x-p.x,dy=P.y-p.y,dz=P.z-p.z;const lim=p.br+R+0.1;if(Math.abs(dx)>lim||Math.abs(dy)>lim||Math.abs(dz)>lim)continue;
+ for(let n=0;n<PR.length;n++){const p=PR[n];if(p.y>1e3||p.nc)continue;const dx=P.x-p.x,dy=P.y-p.y,dz=P.z-p.z;const lim=p.br+R+0.1;if(Math.abs(dx)>lim||Math.abs(dy)>lim||Math.abs(dz)>lim)continue;
   if(p.k===0){const qx=clamp(P.x,p.x-p.a,p.x+p.a),qy=clamp(P.y,p.y-p.b,p.y+p.b),qz=clamp(P.z,p.z-p.c,p.z+p.c);let ex=P.x-qx,ey=P.y-qy,ez=P.z-qz;const d2=ex*ex+ey*ey+ez*ez;
    if(d2>=R*R)continue;if(d2>1e-8){const d=Math.sqrt(d2),f=(R-d)/d;P.x+=ex*f;P.y+=ey*f;P.z+=ez*f}
    else{const px=p.a-Math.abs(dx),py=p.b-Math.abs(dy),pz=p.c-Math.abs(dz);if(px<=py&&px<=pz)P.x+=(dx>0?1:-1)*(px+R);else if(py<=pz)P.y+=(dy>0?1:-1)*(py+R);else P.z+=(dz>0?1:-1)*(pz+R)}}
@@ -1045,9 +1095,10 @@ function collide(){const R=0.85;
    if(d2>=R*R)continue;
    if(d2>1e-8){const d=Math.sqrt(d2),f=(R-d)/d;ea*=f;eu*=f;ev*=f}else{const pr=p.r-rd,pa=p.hl-Math.abs(a);if(pr<pa){const l=rd>1e-6?1/rd:0;eu=(rd>1e-6?u*l:1)*(pr+R);ev=(rd>1e-6?v*l:0)*(pr+R);ea=0}else{ea=(a>0?1:-1)*(pa+R);eu=0;ev=0}}
    _p[ax[0]]+=ea;_p[ax[1]]+=eu;_p[ax[2]]+=ev;P.x=_p[0];P.y=_p[1];P.z=_p[2]}
-  else{const rr=Math.max(p.a,p.b,p.c)+R;const d=Math.sqrt(dx*dx+dy*dy+dz*dz)+1e-6;if(d<rr){const f=(rr-d)/d;P.x+=dx*f;P.y+=dy*f;P.z+=dz*f}}}}
+  else{const A=p.a+R,B=p.b+R,C=p.c+R;const qx=dx/A,qy=dy/B,qz=dz/C;const s2=qx*qx+qy*qy+qz*qz;if(s2<1){const sc=1/Math.sqrt(s2+1e-9);P.x=p.x+dx*sc;P.y=p.y+dy*sc;P.z=p.z+dz*sc}}}}
 function updateEnv(){
- envDep=clamp(-cy,0,198);const l=li(envDep);fogR=FOGR[l];fogG=FOGG[l];fogB=FOGB[l];sunS=SUNG[l];dens=0.042+envDep*0.0005;maxD=clamp(3/dens,24,58);lampI=(smooth(8,70,envDep)*0.9+0.22)*(1+0.3*lampLv);causticK=1}
+ if(cy>0){envDep=0;fogR=0.7;fogG=0.82;fogB=0.94;sunS=1;dens=0.0035;maxD=150;lampI=0;causticK=1;return}
+ envDep=clamp(-cy,0,198);const l=li(envDep);fogR=FOGR[l];fogG=FOGG[l];fogB=FOGB[l];sunS=SUNG[l];dens=0.024+envDep*0.0003;maxD=clamp(3.2/dens,38,84);lampI=(smooth(8,70,envDep)*0.9+0.22)*(1+0.3*lampLv);causticK=1}
 function relicCheck(){for(const q of RL){if(q.found)continue;const dx=q.x-P.x,dy=q.y-P.y,dz=q.z-P.z;const r=q.i===7?11:8.5;if(dx*dx+dy*dy+dz*dz<r*r)discover(q)}
  const q7=RL[7];if(q7.found&&q7.dl){doorOpen=Math.min(1,doorOpen+0.006*(1));const e=doorOpen*doorOpen*(3-2*doorOpen);q7.dl.x=q7.dl.x0-e*2.5;q7.dr.x=q7.dr.x0+e*2.5}}
 
@@ -1091,7 +1142,7 @@ function step(ms){
  let speed=0;
  if(S.mode==='title'){attract(T)}else if(!S.paused){if(dive<1)dive=Math.min(1,dive+dt*0.8);speed=updatePlayer(dt);relicCheck()}
  // camera
- {const sw=S.mode==='play'?1:0;cx=P.x+sw*(0.22*Math.sin(T*0.37)+0.08*Math.sin(T*0.91))*Math.cos(P.yaw);cy=P.y+Math.sin(T*0.7)*0.04+sw*0.14*Math.sin(T*0.53);cz=P.z-sw*(0.22*Math.sin(T*0.37)+0.08*Math.sin(T*0.91))*Math.sin(P.yaw)}
+ {const sw=S.mode==='play'?(P.y<-0.5?1:0.25):0;cx=P.x+sw*(0.22*Math.sin(T*0.37)+0.08*Math.sin(T*0.91))*Math.cos(P.yaw);cy=P.y+Math.sin(T*0.7)*0.04+sw*0.14*Math.sin(T*0.53);cz=P.z-sw*(0.22*Math.sin(T*0.37)+0.08*Math.sin(T*0.91))*Math.sin(P.yaw)}
  const cp=Math.cos(P.pitch),sp=Math.sin(P.pitch),sy=Math.sin(P.yaw),cyw=Math.cos(P.yaw);
  fX=cp*sy;fY=sp;fZ=cp*cyw;rX=cyw;rZ=-sy;uX=-sp*sy;uY=cp;uZ=-sp*cyw;
  updateEnv();
@@ -1102,7 +1153,7 @@ function step(ms){
  const t1=performance.now();
  primPass();worldPass();
  const t2=performance.now();
- floraPass();edgePass();fishPass();animalPass();critterPass();jellyPass();particlePass(paused?0:dt);
+ if(cy>0){edgePass();animalPass()}else{floraPass();edgePass();fishPass();animalPass();critterPass();jellyPass();particlePass(paused?0:dt)}
  const t3=performance.now();
  ugl.fill(0);uK.fill(1);
  if(S.mode==='title')titlePass();else hudPass();

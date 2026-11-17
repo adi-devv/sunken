@@ -6,7 +6,9 @@ Atlantis is still down there, whole: glass domes, light-banded towers, transit t
 
 The sea floor is thick with life: kelp forests and sea-grass meadows in the shallows; sea fans, staghorn, brain coral, sponges and anemones on the reef; tube worms and glowing growths in the deep.
 
-You aren't alone down there. Whistle (F) and a pod of dolphins will come to you, circle you, then lead you to the next relic, with the leader glowing so you can follow it through the dark. Sea turtles and manta rays drift between the towers and answer the whistle too. Reef sharks patrol nearby and keep their distance. Schools of fish and silver bait balls swirl past you, crabs and starfish crawl along the floor, and jellyfish drift from the shallows down to the deep. The water is murky: it gets darker and closer the deeper you go.
+You aren't alone down there. Whistle (F) and a pod of dolphins will come to you, circle you, then lead you to the next relic, with the leader glowing so you can follow it through the dark. Sea turtles and manta rays drift between the towers and answer the whistle too. Reef sharks patrol nearby and keep their distance. Schools of fish and silver bait balls swirl past you, crabs and starfish crawl along the floor, and jellyfish drift from the shallows down to the deep. The water is clear in the shallows and slowly gets darker and closer the deeper you go.
+
+You can also come up for air. Swim to the surface and you float there, bobbing on the waves under an open sky with drifting clouds and the sun glinting off the sea. To the north-west is a small island with a sandy beach, palm trees and a grassy top. You can walk up onto it and jump around (Space), or dive back down and swim under the rock shelf that hangs out over the water on its east side.
 
 Every frame is ray-marched on the CPU, one ray per character cell, then shaded with colour, fog, light shafts and glow. Everything is in a single HTML file with no dependencies.
 
@@ -25,7 +27,8 @@ Then open http://localhost:8000/sunken.html and click to dive.
 | Key | Action |
 |---|---|
 | WASD + mouse | swim and look (the mouse locks at the centre when you dive, or on any key press) |
-| E / Q | rise / sink (Space and C also work) |
+| E / Q | rise / sink (Space and C also work). At the surface you float. Q dives back down |
+| Space (on land) | jump |
 | Shift | swim fast |
 | F or right-click | whistle for the dolphins and other animals |
 | Arrow keys | look |
