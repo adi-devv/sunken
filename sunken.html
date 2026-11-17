@@ -633,7 +633,7 @@ function worldPass(){
    const hx=ox+dx*wsT,hz=oz+dz*wsT;const w=Math.sin(hx*0.5+tnow*0.9)*Math.sin(hz*0.4-tnow*0.7)+0.5*Math.sin((hx+hz)*1.1+tnow*1.7)+0.3*Math.sin(hx*2.3-tnow*2.1+hz*1.7);
    const ci=-dy;const fres=clamp(0.04+0.9*Math.pow(1-ci,4)+w*0.04,0,1);
    let wr=0.03,wg=0.2,wb=0.27,a=0;if(kind!==5){a=Math.exp(-(tEnd-wsT)*0.2);wr+=(cr-wr)*a;wg+=(cg-wg)*a;wb+=(cb-wb)*a}
-   const e=Math.sqrt(Math.min(1,ci*0.6+0.04*w+0.05));const skr=0.78-0.52*e,skg=0.86-0.36*e,skb=0.95-0.05*e;
+   const e=Math.sqrt(clamp(ci*0.6+0.04*w+0.05,0,1));const skr=0.78-0.52*e,skg=0.86-0.36*e,skb=0.95-0.05*e;
    let sr=wr+(skr-wr)*fres,sg=wg+(skg-wg)*fres,sb=wb+(skb-wb)*fres;
    const sp=hash2(Math.floor(hx*1.7+tnow*0.6),Math.floor(hz*1.7));const gl=w>0.95&&sp>0.82?(w-0.95)*(0.6+sp):0;sr+=gl;sg+=gl*0.97;sb+=gl*0.9;
    const f=Math.exp(-dens*wsT);cr=fr+(sr-fr)*f;cg=fg+(sg-fg)*f;cb=fb+(sb-fb)*f;litLum=0.3*cr+0.59*cg+0.11*cb;
@@ -661,6 +661,7 @@ function worldPass(){
    const k=(band*0.9+lat*0.35*Math.min(1,pingR/8)*(1-pingR/200<0?0:1-pingR/200))*pingFade;
    if(k>0.02){cr+=0.1*k;cg+=0.85*k;cb+=1.0*k;lvl=Math.max(lvl,k*0.8);if(band>0.3)gx=G('=');else if(lat>0.3)gx=G('+')}}
   // finalize
+  if(cr!==cr||cg!==cg||cb!==cb){cr=fr;cg=fg;cb=fb}
   let lum=cg*0.59+cr*0.3+cb*0.11;
   let g;
   if(gx>=0)g=gx;

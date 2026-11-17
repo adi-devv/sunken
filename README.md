@@ -1,43 +1,26 @@
 # SUNKEN
 
-A calm 3D underwater exploration game, drawn entirely with text characters in the browser.
+A calm 3D underwater exploration game, drawn entirely in text characters in your browser.
 
-Atlantis is still down there, whole: glass domes, light-banded towers, transit tubes and gates of glowing pylons, spread from the kelp shallows to the great hall on the midnight floor. But its eight beacons have gone dark and the city has lost its power. You dive down the reef slope and through the twilight trench, and each relic you find relights a beacon. A pillar of gold light rises to the surface, the panel seams and light strips of the buildings around it power back up, and your lamp, whistle or fins get an upgrade. There's no danger and no timer.
+**▶ Play: https://adi-devv.github.io/sunken/**
 
-The sea floor is thick with life: kelp forests and sea-grass meadows in the shallows; sea fans, staghorn, brain coral, sponges and anemones on the reef; tube worms and glowing growths in the deep.
+![SUNKEN title screen](screenshot.jpg)
 
-You aren't alone down there. Whistle (F) and a pod of dolphins will come to you, circle you, then lead you to the next relic, with the leader glowing so you can follow it through the dark. Sea turtles and manta rays drift between the towers and answer the whistle too. Reef sharks patrol nearby and keep their distance. Schools of fish and silver bait balls swirl past you, crabs and starfish crawl along the floor, and jellyfish drift from the shallows down to the deep. The water is clear in the shallows and slowly gets darker and closer the deeper you go.
+Dive through kelp, reefs and a dark trench to find the eight relics that relight the beacons of sunken Atlantis. Whistle for dolphins and they'll guide you to the next one. Come up for air and walk around a small beach island. There's no danger and no timer.
 
-You can also come up for air. Swim to the surface and you float there, bobbing on the waves under an open sky with drifting clouds and the sun glinting off the sea. To the north-west is a low beach island: soft sand, a patch of grass in the middle and a few palm trees. You can walk up onto it and jump around (Space), or dive back down and swim under the sandy ledge that sticks out over the water on its east side.
-
-Every frame is ray-marched on the CPU, one ray per character cell, then shaded with colour, fog, light shafts and glow. Everything is in a single HTML file with no dependencies.
-
-## Play
-
-Play it online: **https://adi-devv.github.io/sunken/**
-
-Or run it locally: open `sunken.html` in Chrome or Edge, or serve the folder:
-
-```bash
-python -m http.server 8000
-```
-
-Then open http://localhost:8000/sunken.html and click to dive.
+Every frame is ray-marched on the CPU, one ray per character. It's a single HTML file with no dependencies.
 
 ## Controls
 
 | Key | Action |
 |---|---|
-| WASD + mouse | swim and look (the mouse locks at the centre when you dive, or on any key press) |
-| E / Q | rise / sink (Space and C also work). At the surface you float. Q dives back down |
-| Space (on land) | jump |
+| WASD + mouse | swim and look |
+| E / Q | rise / sink |
 | Shift | swim fast |
-| F or right-click | whistle for the dolphins and other animals |
-| Arrow keys | look |
-| J | journal |
-| M | mute |
-| P / Esc | pause |
-| - / + | smaller / larger HUD text |
-| [ ] | smaller / larger world glyphs |
+| F | whistle for dolphins |
+| Space (on land) | jump |
+| J / M / P | journal / mute / pause |
 
-Mouse lock needs a normal browser tab. Embedded previews (like an editor's built-in browser) refuse it. There, move the mouse away from the centre of the screen to turn.
+## Run locally
+
+Open `sunken.html` in Chrome or Edge, or run `python -m http.server 8000` and go to http://localhost:8000/sunken.html.
